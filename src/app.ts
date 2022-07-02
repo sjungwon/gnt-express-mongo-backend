@@ -1,16 +1,40 @@
-import { Request, Response } from "express";
+import express, { Request, Response } from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import cors from "cors";
+import indexRouter from "./routes/index.js";
+import postRouter from "./routes/posts.js";
 
-require("dotenv").config();
+dotenv.config();
 
-const express = require("express");
+const PORT = process.env.PORT;
 
 const app = express();
-const port = process.env.PORT;
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("Hello World");
-});
+app.use(express.json());
+app.use(express.urlencoded({ limit: "30mb", extended: true }));
+app.use(cors());
 
-app.listen(port, () => {
-  console.log(`hello world on port ${port}`);
-});
+//Routing
+app.use("/", indexRouter);
+app.use("/posts", postRouter);
+
+//DB Variable
+const DB_PATH = process.env.DB_PATH ? process.env.DB_PATH : "";
+const DB_ID = process.env.DB_ID;
+const DB_PASSWORD = process.env.DB_PASSWORD;
+const DB_AUTH_PATH = `mongodb://${DB_ID}:${DB_PASSWORD}@${DB_PATH}`;
+
+//Connect DB
+mongoose
+  .connect(DB_AUTH_PATH)
+  .then(() => {
+    app.listen(
+      app.listen(PORT, () => {
+        console.log(`Server running with mongodb on port: ${PORT}`);
+      })
+    );
+  })
+  .catch((err) => {
+    console.log(err.message);
+  });
