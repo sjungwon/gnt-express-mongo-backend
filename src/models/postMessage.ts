@@ -7,6 +7,7 @@ export interface PostDataType {
   likes: string[];
   dislikes: string[];
   createAt: Date;
+  ["other"]: any;
 }
 
 const postSchema = new mongoose.Schema({

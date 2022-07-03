@@ -2,8 +2,10 @@ import express, { Request, Response } from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
-import indexRouter from "./routes/index.js";
-import postRouter from "./routes/posts.js";
+import IndexRouter from "./routes/index.js";
+import PostRouter from "./routes/posts.js";
+import AuthRouter from "./routes/auth.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -14,10 +16,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
 app.use(cors());
+app.use(cookieParser());
 
 //Routing
-app.use("/", indexRouter);
-app.use("/posts", postRouter);
+app.use("/", IndexRouter);
+app.use("/posts", PostRouter);
+app.use("/auth", AuthRouter);
 
 //DB Variable
 const DB_PATH = process.env.DB_PATH ? process.env.DB_PATH : "";

@@ -5,10 +5,11 @@ import {
   getPosts,
   updatePost,
 } from "../controllers/posts.js";
+import tokenParser from "../middleware/token-parser.js";
 
 const router = express.Router();
 
-router.get("/", getPosts);
+router.get("/", tokenParser, getPosts);
 
 router.post("/", createPost);
 

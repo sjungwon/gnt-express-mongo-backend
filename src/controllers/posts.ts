@@ -12,7 +12,7 @@ export const getPosts = async (req: Request, res: Response) => {
 };
 
 export const createPost = async (req: Request, res: Response) => {
-  const post = req.body as Object & PostDataType;
+  const post = req.body as PostDataType;
 
   const newPost = new PostMessage(post);
 
@@ -27,7 +27,7 @@ export const createPost = async (req: Request, res: Response) => {
 
 export const updatePost = async (req: Request, res: Response) => {
   const { id: _id } = req.params;
-  const post = req.body as Object & PostDataType;
+  const post = req.body as PostDataType;
 
   if (!mongoose.Types.ObjectId.isValid(_id)) {
     return res.status(404).send("No post found with requested id");
