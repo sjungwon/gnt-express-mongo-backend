@@ -38,9 +38,12 @@ export const userSignin = async (req: Request, res: Response) => {
     const refreshToken = jwtTokenGen(tokenPayload, "refresh");
 
     //refresh Token은 쿠키에 저장
-    res.cookie("refreshToken", refreshToken, { httpOnly: true });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
     //access Token은 body로 전송 -> client에서 저장하고 사용
-    res.status(200).json({ token: accessToken });
+    res.status(200).json({ userData: tokenPayload, accessToken: accessToken });
   } catch (err) {
     res.status(500).json({ error: err });
   }
@@ -101,7 +104,9 @@ export const userSigninCheck = (req: Request, res: Response) => {
   //refresh가 유효하면 access만 재발급
   if (refreshVerify) {
     const newAccessToken = jwtTokenGen(refreshVerify, "access");
-    return res.status(202).json({ accessToken: newAccessToken });
+    return res
+      .status(202)
+      .json({ accessToken: newAccessToken, userData: refreshVerify });
   }
 
   //refresh가 만료 혹은 오류이면
@@ -119,6 +124,9 @@ export const userSigninCheck = (req: Request, res: Response) => {
   const newAccessToken = jwtTokenGen(accessVerify, "access");
   const newRefreshToken = jwtTokenGen(accessVerify, "refresh");
 
-  res.cookie("refreshToken", newRefreshToken, { httpOnly: true });
-  res.status(202).json({ accessToken: newAccessToken });
+  res.cookie("refreshToken", newRefreshToken, {
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  });
+  res.status(202).json({ accessToken: newAccessToken, userData: accessVerify });
 };
