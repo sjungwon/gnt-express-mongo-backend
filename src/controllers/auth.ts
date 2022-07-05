@@ -159,7 +159,6 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   //저장된 refreshToken인지 확인
   try {
     const isSaved = await RefreshTokenModel.findOne({ refreshToken });
-    console.log(isSaved);
     if (!isSaved) {
       return res.status(403).send(errJson);
     }
