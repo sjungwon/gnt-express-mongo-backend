@@ -1,7 +1,7 @@
 import express from "express";
 import {
   userSignin,
-  userSigninCheck,
+  refreshAccessToken,
   userSignout,
   userSignup,
 } from "../controllers/auth.js";
@@ -14,6 +14,6 @@ router.post("/signup", userSignup);
 
 router.post("/signout", userSignout);
 
-router.post("/signcheck", userSigninCheck);
+router.post("/refresh", refreshAccessToken);
 
 export default router;
