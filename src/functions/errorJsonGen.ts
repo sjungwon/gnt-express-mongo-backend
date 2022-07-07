@@ -1,36 +1,69 @@
 interface ErrorResponseType {
-  error: string | any;
+  error: string | Error;
   type: string;
 }
 
-export const serverErrorJson = (err: Error): ErrorResponseType => ({
-  error: err,
+interface ServerErrorType {
+  error: "serverError" | Error;
+  type: "server error";
+}
+
+const serverErrorJson = (err?: Error): ServerErrorType => ({
+  error: err ? err : "serverError",
   type: "server error",
 });
 
-interface AuthErrorType extends ErrorResponseType {
+interface DefaultErrorType extends ErrorResponseType {
   type:
-    | "Login fail"
     | "server error"
     | "missing data"
-    | "exist email"
-    | "exist username"
     | "not signin"
-    | "not found";
+    | "not found"
+    | "unauthorized request";
 }
 
-export const auhtErrorJson = (type: AuthErrorType["type"]): AuthErrorType => {
+interface AuthErrorType extends ErrorResponseType {
+  type: "Login fail" | "exist email" | "exist username" | "server error";
+}
+
+export const defaultErrorJson = (
+  type: DefaultErrorType["type"],
+  err?: any
+): DefaultErrorType => {
+  switch (type) {
+    case "missing data":
+      return {
+        type,
+        error: "some data missing",
+      };
+    case "not signin":
+      return {
+        type,
+        error: "user does not signin",
+      };
+    case "not found":
+      return {
+        type,
+        error: "requested data not found",
+      };
+    case "unauthorized request":
+      return {
+        type,
+        error: "user's request is unauthorized request",
+      };
+    default:
+      return serverErrorJson(err);
+  }
+};
+
+export const authErrorJson = (type: AuthErrorType["type"]): AuthErrorType => {
   switch (type) {
     case "Login fail":
       return {
         type,
         error: "Login fail",
       };
-    case "missing data":
-      return {
-        type,
-        error: "some data missing",
-      };
+
     case "exist email":
       return {
         type,
@@ -41,21 +74,9 @@ export const auhtErrorJson = (type: AuthErrorType["type"]): AuthErrorType => {
         type,
         error: "username already exist",
       };
-    case "not signin":
-      return {
-        type,
-        error: "user does not signin",
-      };
-    case "not found":
-      return {
-        type,
-        error: "username & email not found",
-      };
+
     default:
-      return {
-        type: "server error",
-        error: "server error",
-      };
+      return serverErrorJson();
   }
 };
 
