@@ -6,34 +6,19 @@ import {
   jwtTokenVerify,
   TokenPayload,
 } from "../functions/token.js";
-import { ErrorResponseType } from "../types/error.type.js";
 import RefreshTokenModel from "../models/refreshTokenModel.js";
-import mongoose from "mongoose";
-
-interface AuthErrorType extends ErrorResponseType {
-  type:
-    | "Login fail"
-    | "server error"
-    | "missing data"
-    | "exist email"
-    | "exist username"
-    | "not signin";
-}
+import { auhtErrorJson, serverErrorJson } from "../functions/errorJsonGen.js";
 
 export const userSignin = async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
   try {
     //DB에서 유저 조회
-    const findedUser = await UserModel.findOne({ username });
+    const findedUser = await UserModel.findOne({ username }).exec();
 
     //DB에 존재하지 않는 유저 -> 잘못 입력 혹은 가입되지 않은 유저
     if (!findedUser) {
-      const errJson: AuthErrorType = {
-        error: "Login fail",
-        type: "Login fail",
-      };
-      return res.status(404).send(errJson);
+      return res.status(404).send(auhtErrorJson("Login fail"));
     }
 
     //존재하는 경우 -> 비밀번호 검증
@@ -41,11 +26,7 @@ export const userSignin = async (req: Request, res: Response) => {
 
     //틀린 비밀번호인 경우
     if (!passwordVerify) {
-      const errJson: AuthErrorType = {
-        error: "Login fail",
-        type: "Login fail",
-      };
-      return res.status(404).send(errJson);
+      return res.status(404).send(auhtErrorJson("Login fail"));
     }
 
     //로그인 성공
@@ -78,9 +59,8 @@ export const userSignin = async (req: Request, res: Response) => {
     });
     //access Token은 body로 전송 -> client에서 저장하고 사용
     res.status(200).json({ userData: tokenPayload, accessToken: accessToken });
-  } catch (err) {
-    const errJson: AuthErrorType = { error: err, type: "server error" };
-    res.status(500).json(errJson);
+  } catch (err: any) {
+    res.status(500).json(serverErrorJson(err));
   }
 };
 
@@ -88,29 +68,17 @@ export const userSignup = async (req: Request, res: Response) => {
   const { username, password, email } = req.body;
 
   if (!username || !password || !email) {
-    const errJson: AuthErrorType = {
-      error: "some data missing",
-      type: "missing data",
-    };
-    return res.status(400).json(errJson);
+    return res.status(400).json(auhtErrorJson("missing data"));
   }
 
   try {
-    const findDupEmail = await UserModel.findOne({ email });
+    const findDupEmail = await UserModel.findOne({ email }).exec();
     if (findDupEmail) {
-      const errJson: AuthErrorType = {
-        error: "email already exist",
-        type: "exist email",
-      };
-      return res.status(409).json(errJson);
+      return res.status(409).json(auhtErrorJson("exist email"));
     }
-    const findDupUsername = await UserModel.findOne({ username });
+    const findDupUsername = await UserModel.findOne({ username }).exec();
     if (findDupUsername) {
-      const errJson: AuthErrorType = {
-        error: "username already exist",
-        type: "exist username",
-      };
-      return res.status(409).json(errJson);
+      return res.status(409).json(auhtErrorJson("exist username"));
     }
 
     const salt = await bcrypt.genSalt();
@@ -125,9 +93,8 @@ export const userSignup = async (req: Request, res: Response) => {
     await newUser.save();
 
     res.status(201).send("register success");
-  } catch (err) {
-    const errJson: AuthErrorType = { error: err, type: "server error" };
-    res.status(500).json(errJson);
+  } catch (err: any) {
+    res.status(500).json(serverErrorJson(err));
   }
 };
 
@@ -147,24 +114,19 @@ export const userSignout = async (req: Request, res: Response) => {
 export const refreshAccessToken = async (req: Request, res: Response) => {
   const refreshToken: string = req.cookies.refreshToken || "";
   const refreshKey = process.env.JWT_SECRET_REFRESH || "";
-  const errJson: AuthErrorType = {
-    error: "user does not signin",
-    type: "not signin",
-  };
 
   if (!refreshToken) {
-    return res.status(403).send(errJson);
+    return res.status(403).send(auhtErrorJson("not signin"));
   }
 
   //저장된 refreshToken인지 확인
   try {
-    const isSaved = await RefreshTokenModel.findOne({ refreshToken });
+    const isSaved = await RefreshTokenModel.findOne({ refreshToken }).exec();
     if (!isSaved) {
-      return res.status(403).send(errJson);
+      return res.status(403).send(auhtErrorJson("not signin"));
     }
-  } catch (err) {
-    const serverErrJson: AuthErrorType = { error: err, type: "server error" };
-    return res.status(500).send(serverErrJson);
+  } catch (err: any) {
+    return res.status(500).send(serverErrorJson(err));
   }
 
   //refresh 토큰 검증
@@ -179,5 +141,48 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   }
 
   //refresh가 만료 혹은 오류이면
-  return res.status(403).send(errJson);
+  return res.status(403).send(auhtErrorJson("not signin"));
+};
+
+export const findUserForFindPassword = async (req: Request, res: Response) => {
+  const { username, email }: { username: string; email: string } = req.body;
+
+  try {
+    const isValid = await UserModel.findOne({ username, email }).exec();
+    if (!isValid) {
+      return res.status(404).json(auhtErrorJson("not found"));
+    }
+
+    res.status(200).send("confirmed");
+  } catch (err: any) {
+    return res.status(500).json(serverErrorJson(err));
+  }
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  const {
+    username,
+    email,
+    password,
+  }: { username: string; email: string; password: string } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json(auhtErrorJson("missing data"));
+  }
+
+  try {
+    const hasUser = await UserModel.findOne({ username, email });
+    if (!hasUser) {
+      return res.status(404).json(auhtErrorJson("not found"));
+    }
+    const salt = await bcrypt.genSalt();
+    const encryptPassword = await bcrypt.hash(password, salt);
+    await UserModel.findOneAndUpdate(
+      { username, email },
+      { password: encryptPassword }
+    );
+    return res.status(201).send("password changed successfully");
+  } catch (err: any) {
+    return res.status(500).json(serverErrorJson(err));
+  }
 };
