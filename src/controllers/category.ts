@@ -5,6 +5,7 @@ import { TokenPayload } from "../functions/token.js";
 import CategoryModel, { CategoryType } from "../models/category.js";
 import ProfileModel, { ProfileType } from "../models/profile.js";
 
+//카테고리(게시판) get
 export const getCategory = async (req: Request, res: Response) => {
   try {
     const category = await CategoryModel.find().populate({
