@@ -5,6 +5,8 @@ import cors from "cors";
 import IndexRouter from "./routes/index.js";
 import PostRouter from "./routes/posts.js";
 import AuthRouter from "./routes/auth.js";
+import CategoryRouter from "./routes/category.js";
+import ProfileRouter from "./routes/profile.js";
 import cookieParser from "cookie-parser";
 
 dotenv.config();
@@ -27,6 +29,8 @@ app.use(cookieParser());
 app.use("/", IndexRouter);
 app.use("/posts", PostRouter);
 app.use("/auth", AuthRouter);
+app.use("/categories", CategoryRouter);
+app.use("/profiles", ProfileRouter);
 
 //DB Variable
 const DB_PATH = process.env.DB_PATH ? process.env.DB_PATH : "";
