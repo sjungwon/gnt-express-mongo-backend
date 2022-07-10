@@ -1,28 +1,22 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 
 export interface CategoryType {
-  _id: mongoose.Schema.Types.ObjectId;
-  creator: {
-    id: mongoose.Schema.Types.ObjectId;
-    username: string;
-  };
+  _id?: Types.ObjectId;
+  //user is ref for join collections
+  user: Types.ObjectId;
   title: string;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 const categorySchema = new mongoose.Schema<CategoryType>({
-  creator: {
-    id: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
-    username: {
-      type: String,
-      required: true,
-    },
+  user: {
+    type: mongoose.SchemaTypes.ObjectId,
+    required: true,
+    ref: "users",
   },
   title: {
     type: String,
+    unique: true,
     required: true,
   },
   createdAt: {
@@ -31,6 +25,6 @@ const categorySchema = new mongoose.Schema<CategoryType>({
   },
 });
 
-const CategoryModel = mongoose.model("category", categorySchema);
+const CategoryModel = mongoose.model("categories", categorySchema);
 
 export default CategoryModel;

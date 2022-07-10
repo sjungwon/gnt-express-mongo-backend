@@ -19,7 +19,8 @@ interface DefaultErrorType extends ErrorResponseType {
     | "missing data"
     | "not signin"
     | "not found"
-    | "unauthorized request";
+    | "unauthorized request"
+    | "data conflict";
 }
 
 interface AuthErrorType extends ErrorResponseType {
@@ -50,6 +51,11 @@ export const defaultErrorJson = (
       return {
         type,
         error: "user's request is unauthorized request",
+      };
+    case "data conflict":
+      return {
+        type,
+        error: "requested data conflict with server data",
       };
     default:
       return serverErrorJson(err);

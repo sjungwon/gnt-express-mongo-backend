@@ -12,6 +12,6 @@ router.get("/", getCategory);
 
 router.post("/", tokenParser, addCategory);
 
-router.delete("/", tokenParser, removeCategory);
+router.delete("/:id", tokenParser, removeCategory);
 
 export default router;
