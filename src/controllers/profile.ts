@@ -53,7 +53,6 @@ export const getMyProfile: RequestHandler = async (req, res) => {
       .populate({ path: "user", select: "username" });
     return res.status(200).send(profiles);
   } catch (err) {
-    console.log(err);
     return res.status(500).json(defaultErrorJson("server error"));
   }
 };
@@ -97,7 +96,11 @@ export const addProfiles: RequestHandler = async (req, res) => {
 
     await newProfile.save();
 
-    return res.status(201).json(newProfile);
+    const newProfileRes = await ProfileModel.findOne({ _id: newProfile._id })
+      .populate({ path: "category", select: "title" })
+      .populate({ path: "user", select: "username" });
+
+    return res.status(201).json(newProfileRes);
   } catch (err: any) {
     return res.status(500).json(defaultErrorJson("server error", err));
   }
@@ -113,6 +116,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
 
   const profileId: string = req.params["id"];
 
+  //닉네임 변경이 안되고 있음 -> 변경처리 해야함
   const { name: newName }: { name: string } = req.body;
 
   if (!newName) {
@@ -127,10 +131,18 @@ export const updateProfile: RequestHandler = async (req, res) => {
     if (prevProfile.user.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
-    prevProfile.update(undefined, {
-      name: newName,
-    });
-    return res.status(201).json("update profile successfully");
+
+    const updatedProfile = await ProfileModel.findByIdAndUpdate(
+      profileId,
+      {
+        name: newName,
+      },
+      { new: true }
+    )
+      .populate({ path: "category", select: "title" })
+      .populate({ path: "user", select: "username" });
+
+    return res.status(201).json(updatedProfile);
   } catch (err: any) {
     return res.status(500).json(defaultErrorJson("server error", err));
   }
@@ -158,9 +170,9 @@ export const deleteProfile: RequestHandler = async (req, res) => {
     if (profile.user.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
-    await profile.delete().exec();
+    await ProfileModel.findByIdAndDelete(profileId);
     return res.status(200).send("delete profile successfully");
   } catch (err) {
-    return res.status(500).json(defaultErrorJson("server error"));
+    return res.status(500).json(defaultErrorJson("server error", err));
   }
 };
