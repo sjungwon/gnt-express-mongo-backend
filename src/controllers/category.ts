@@ -20,7 +20,7 @@ export const getCategory = async (req: Request, res: Response) => {
 
 //use token
 export const addCategory = async (req: Request, res: Response) => {
-  const userData: TokenPayload = req.body.parseToken;
+  const userData: TokenPayload | undefined = req.parseToken;
 
   if (!userData) {
     return res.status(401).json(defaultErrorJson("not signin"));
@@ -55,7 +55,7 @@ export const addCategory = async (req: Request, res: Response) => {
 
 //use Token
 export const removeCategory = async (req: Request, res: Response) => {
-  const userData: TokenPayload = req.body.parseToken;
+  const userData: TokenPayload | undefined = req.parseToken;
 
   if (!userData) {
     return res.status(401).json(defaultErrorJson("not signin"));

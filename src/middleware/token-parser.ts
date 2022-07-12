@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { tokenErrorJson } from "../functions/errorJsonGen.js";
+import { TokenPayload } from "../functions/token.js";
 
 //유저 정보는 accessToken만으로 처리
 //client 쪽에서 유저 권한이 필요한 요청인 경우엔 checklogin으로 토큰을 재발급 받은 후에
@@ -25,7 +26,7 @@ export default function tokenParser(
       ignoreExpiration: false,
     });
 
-    req.body.parseToken = verify;
+    req.parseToken = verify as TokenPayload;
 
     next();
   } catch (err) {

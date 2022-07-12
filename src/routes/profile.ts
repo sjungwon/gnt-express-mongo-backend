@@ -2,7 +2,6 @@ import express from "express";
 import {
   addProfiles,
   deleteProfile,
-  formData,
   getProfile,
   getProfilesByUserId,
   getProfilesByUsername,
@@ -10,7 +9,8 @@ import {
 } from "../controllers/profile.js";
 import tokenParser from "../middleware/token-parser.js";
 import multer from "multer";
-const upload = multer();
+import { uploadProfileImageFile } from "../middleware/upload-s3.js";
+const formParser = multer();
 
 const router = express.Router();
 
@@ -20,12 +20,10 @@ router.get("/id/:id", getProfilesByUserId);
 
 router.get("/username/:username", getProfilesByUsername);
 
-router.post("/", tokenParser, addProfiles);
+router.post("/", uploadProfileImageFile, addProfiles);
 
-router.patch("/:id", tokenParser, updateProfile);
+router.patch("/:id", uploadProfileImageFile, updateProfile);
 
 router.delete("/:id", tokenParser, deleteProfile);
-
-router.post("/form", upload.fields([]), formData);
 
 export default router;
