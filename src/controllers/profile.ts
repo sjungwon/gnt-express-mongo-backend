@@ -196,3 +196,9 @@ export const deleteProfile: RequestHandler = async (req, res) => {
     return res.status(500).json(defaultErrorJson("server error", err));
   }
 };
+
+export const formData: RequestHandler = (req, res) => {
+  const formData = req.body;
+  console.log(formData.username);
+  return res.send(formData);
+};

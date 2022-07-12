@@ -8,6 +8,7 @@ import AuthRouter from "./routes/auth.js";
 import CategoryRouter from "./routes/category.js";
 import ProfileRouter from "./routes/profile.js";
 import cookieParser from "cookie-parser";
+import multer from "multer";
 
 dotenv.config();
 
