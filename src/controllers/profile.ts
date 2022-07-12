@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { defaultErrorJson } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
 import ProfileModel, { ProfileType } from "../models/profile.js";
+import UserModel from "../models/userModel.js";
 
 //profile id로 특정 profile get
 export const getProfile: RequestHandler = async (req, res) => {
@@ -29,22 +30,16 @@ export const getProfile: RequestHandler = async (req, res) => {
 };
 
 //user의 profile 정보 get
-//user 정보 token parser 이용
-export const getMyProfile: RequestHandler = async (req, res) => {
-  const userData: TokenPayload | undefined = req.body.parseToken;
+export const getProfilesByUserId: RequestHandler = async (req, res) => {
+  const userId = req.params["id"];
 
-  if (!userData) {
-    return res.status(401).json(defaultErrorJson("not signin"));
+  if (!userId) {
+    return res.status(400).json(defaultErrorJson("missing data"));
   }
-
-  const creator = {
-    username: userData.username,
-    id: userData.id,
-  };
 
   try {
     const profiles = await ProfileModel.find({
-      "creator.id": creator.id,
+      user: userId,
     })
       .populate({
         path: "category",
@@ -53,7 +48,32 @@ export const getMyProfile: RequestHandler = async (req, res) => {
       .populate({ path: "user", select: "username" });
     return res.status(200).send(profiles);
   } catch (err) {
-    return res.status(500).json(defaultErrorJson("server error"));
+    return res.status(500).json(defaultErrorJson("server error", err));
+  }
+};
+
+export const getProfilesByUsername: RequestHandler = async (req, res) => {
+  const username = decodeURIComponent(req.params["username"]);
+  if (!username) {
+    return res.status(400).json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    const user = await UserModel.findOne({ username });
+    if (!user) {
+      return res.status(404).json(defaultErrorJson("not found"));
+    }
+    const profiles = await ProfileModel.find({
+      user: user._id,
+    })
+      .populate({
+        path: "category",
+        select: "title",
+      })
+      .populate({ path: "user", select: "username" });
+    return res.status(200).send(profiles);
+  } catch (err) {
+    return res.status(500).json(defaultErrorJson("server error", err));
   }
 };
 
