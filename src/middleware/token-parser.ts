@@ -13,7 +13,6 @@ export default function tokenParser(
   next: NextFunction
 ) {
   const accessToken = req.headers.authorization?.split(" ")[1];
-  console.log(accessToken);
 
   if (!accessToken) {
     return res.status(403).send(tokenErrorJson());

@@ -9,8 +9,6 @@ export interface ProfileType {
     URL?: string;
     Key?: string;
   };
-  profileImageURL?: string;
-  profileImageKey?: string;
   createdAt?: Date;
 }
 
@@ -43,6 +41,20 @@ const profileSchema = new mongoose.Schema<ProfileType>({
     type: Date,
     default: new Date(),
   },
+});
+
+profileSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "category",
+    select: "title",
+  });
+  this.populate({ path: "user", select: "username" });
+  next();
+});
+
+profileSchema.pre("save", function (next) {
+  this.createdAt = new Date();
+  next();
 });
 
 const ProfileModel = mongoose.model("profiles", profileSchema);

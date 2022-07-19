@@ -23,7 +23,7 @@ const uploadProfileImage = async (
     return next();
   }
 
-  const userData: TokenPayload | undefined = req.body.parseToken;
+  const userData: TokenPayload | undefined = req.parseToken;
 
   if (!userData) {
     return res.status(403).send(tokenErrorJson());
@@ -34,7 +34,10 @@ const uploadProfileImage = async (
   }
 
   try {
-    const resizedFile = await sharp(file.buffer).resize(50, 50).toBuffer();
+    const resizedFile = await sharp(file.buffer)
+      .jpeg({ quality: 90 })
+      .resize(50, 50)
+      .toBuffer();
 
     const fileStream = Readable.from(resizedFile);
 
@@ -42,7 +45,7 @@ const uploadProfileImage = async (
       Bucket: process.env.S3_BUCKET_NAME,
       Key: `${
         userData.id
-      }/profile/${new Date().toString()}/${encodeURIComponent(
+      }/profile/${new Date().toISOString()}/${encodeURIComponent(
         file.originalname
       )}`,
       Body: fileStream,
@@ -66,4 +69,68 @@ export const uploadProfileImageFile = [
   formParser.single("profileImage"),
   tokenParser,
   uploadProfileImage,
+];
+
+const uploadPostImages = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const files: Express.Multer.File[] | undefined = req.files as
+    | Express.Multer.File[]
+    | undefined;
+
+  //새 이미지가 없는 경우
+  if (!files || !files.length) {
+    return next();
+  }
+
+  const userData: TokenPayload | undefined = req.parseToken;
+
+  if (!userData) {
+    return res.status(403).send(tokenErrorJson());
+  }
+
+  if (!process.env.S3_BUCKET_NAME) {
+    return res.status(500).send("bucket name missing");
+  }
+
+  try {
+    const date = new Date().toISOString();
+    const resizedFiles = await Promise.all(
+      files.map(async (file) => {
+        const resizedFile = await sharp(file.buffer)
+          .jpeg({ quality: 90 })
+          .resize(600, 350)
+          .toBuffer();
+        const fileStream = Readable.from(resizedFile);
+
+        const uploadParams: AWS.S3.PutObjectRequest = {
+          Bucket: process.env.S3_BUCKET_NAME as string,
+          Key: `${userData.id}/posts/${date}/${encodeURIComponent(
+            file.originalname
+          )}`,
+          Body: fileStream,
+        };
+
+        const objURL = await S3.upload(uploadParams).promise();
+        const postImageObj: ProfileImageObj = {
+          URL: objURL.Location,
+          Key: objURL.Key,
+        };
+        return postImageObj;
+      })
+    );
+
+    req.postImageObjArr = resizedFiles;
+    next();
+  } catch (err) {
+    return res.status(500).send(err);
+  }
+};
+
+export const uploadPostImageFiles = [
+  formParser.array("newImages"),
+  tokenParser,
+  uploadPostImages,
 ];

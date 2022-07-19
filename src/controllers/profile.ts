@@ -16,12 +16,8 @@ export const getProfile: RequestHandler = async (req, res) => {
   }
 
   try {
-    const profile = await ProfileModel.findOne({ _id: profileId })
-      .populate({
-        path: "category",
-        select: "title",
-      })
-      .populate({ path: "user", select: "username" });
+    const profile = await ProfileModel.findOne({ _id: profileId });
+
     if (!profile) {
       return res.status(404).json(defaultErrorJson("not found"));
     }
@@ -42,12 +38,7 @@ export const getProfilesByUserId: RequestHandler = async (req, res) => {
   try {
     const profiles = await ProfileModel.find({
       user: userId,
-    })
-      .populate({
-        path: "category",
-        select: "title",
-      })
-      .populate({ path: "user", select: "username" });
+    });
     return res.status(200).send(profiles);
   } catch (err) {
     return res.status(500).json(defaultErrorJson("server error", err));
@@ -67,12 +58,8 @@ export const getProfilesByUsername: RequestHandler = async (req, res) => {
     }
     const profiles = await ProfileModel.find({
       user: user._id,
-    })
-      .populate({
-        path: "category",
-        select: "title",
-      })
-      .populate({ path: "user", select: "username" });
+    });
+
     return res.status(200).send(profiles);
   } catch (err) {
     return res.status(500).json(defaultErrorJson("server error", err));
@@ -87,8 +74,6 @@ export const addProfiles: RequestHandler = async (req, res) => {
   if (!userData) {
     return res.status(401).json(defaultErrorJson("not signin"));
   }
-
-  console.log(req.body, req.file);
 
   const reqProfileData: {
     category: Types.ObjectId;
@@ -127,9 +112,7 @@ export const addProfiles: RequestHandler = async (req, res) => {
 
     await newProfile.save();
 
-    const newProfileRes = await ProfileModel.findOne({ _id: newProfile._id })
-      .populate({ path: "category", select: "title" })
-      .populate({ path: "user", select: "username" });
+    const newProfileRes = await ProfileModel.findOne({ _id: newProfile._id });
 
     return res.status(201).json(newProfileRes);
   } catch (err: any) {
@@ -169,7 +152,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
     if (!prevProfile) {
       return res.status(404).json(defaultErrorJson("not found"));
     }
-    if (prevProfile.user.toString() !== userData.id.toString()) {
+    if (prevProfile.user._id.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
 
@@ -182,8 +165,9 @@ export const updateProfile: RequestHandler = async (req, res) => {
       nickname?: string;
       profileImage?: ProfileImageObj;
     } = {};
-    console.log(prevProfile.category, profileData);
-    if (prevProfile.category.toString() !== profileData.category.toString()) {
+    if (
+      prevProfile.category._id.toString() !== profileData.category.toString()
+    ) {
       updateData.category = profileData.category;
     }
     if (prevProfile.nickname !== profileData.nickname) {
@@ -207,9 +191,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
       profileId,
       updateData,
       { new: true }
-    )
-      .populate({ path: "category", select: "title" })
-      .populate({ path: "user", select: "username" });
+    );
 
     return res.status(201).json(updatedProfile);
   } catch (err: any) {
@@ -236,7 +218,7 @@ export const deleteProfile: RequestHandler = async (req, res) => {
       return res.status(404).json(defaultErrorJson("not found"));
     }
 
-    if (profile.user.toString() !== userData.id.toString()) {
+    if (profile.user._id.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
 

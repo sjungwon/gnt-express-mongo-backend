@@ -1,22 +1,27 @@
-import express, { Response } from "express";
+import express from "express";
 import {
   createPost,
   deletePost,
   getPosts,
+  postDislikeHandler,
+  postLikeHandler,
   updatePost,
 } from "../controllers/posts.js";
 import tokenParser from "../middleware/token-parser.js";
+import { uploadPostImageFiles } from "../middleware/upload-s3.js";
 
 const router = express.Router();
 
-router.get("/", tokenParser, getPosts);
+router.get("/", getPosts);
 
-router.post("/", createPost);
+router.post("/", uploadPostImageFiles, createPost);
 
-router.patch("/:id", updatePost);
+router.patch("/", uploadPostImageFiles, updatePost);
 
-router.delete("/:id", deletePost);
+router.delete("/:id", tokenParser, deletePost);
 
-// router.delete("/:id", removePost);
+router.patch("/likes/:id", tokenParser, postLikeHandler);
+
+router.patch("/dislikes/:id", tokenParser, postDislikeHandler);
 
 export default router;

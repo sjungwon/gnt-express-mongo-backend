@@ -83,7 +83,6 @@ export const removeCategory = async (req: Request, res: Response) => {
     await ProfileModel.deleteMany({ "category.id": categoryId });
     return res.status(200).send("remove category successfully");
   } catch (err: any) {
-    console.log(err);
     return res.status(500).send(defaultErrorJson("server error", err));
   }
 };

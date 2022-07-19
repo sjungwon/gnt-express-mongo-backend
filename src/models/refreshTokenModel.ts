@@ -17,6 +17,11 @@ refreshTokenSchema.index(
   { expireAfterSeconds: 60 * 60 * 24 * 7 }
 );
 
+refreshTokenSchema.pre("save", function (next) {
+  this.createdAt = new Date();
+  next();
+});
+
 const RefreshTokenModel = mongoose.model("refresh_tokens", refreshTokenSchema);
 
 export default RefreshTokenModel;

@@ -8,6 +8,7 @@ import AuthRouter from "./routes/auth.js";
 import CategoryRouter from "./routes/category.js";
 import ProfileRouter from "./routes/profile.js";
 import cookieParser from "cookie-parser";
+import CommentRouter from "./routes/comments.js";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/posts", PostRouter);
 app.use("/auth", AuthRouter);
 app.use("/categories", CategoryRouter);
 app.use("/profiles", ProfileRouter);
+app.use("/comments", CommentRouter);
 
 //DB Variable
 const DB_PATH = process.env.DB_PATH ? process.env.DB_PATH : "";
