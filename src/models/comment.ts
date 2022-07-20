@@ -50,7 +50,7 @@ CommentSchema.pre(/^find/, function (next) {
   this.populate({ path: "user", select: "username" });
   this.populate({
     path: "subcomments",
-    options: { sort: { createdAt: -1 }, limit: 3 },
+    options: { sort: { createdAt: -1 }, limit: 1 },
   });
   next();
 });

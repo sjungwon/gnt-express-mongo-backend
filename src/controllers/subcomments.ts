@@ -1,16 +1,19 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import { defaultErrorCode, defaultErrorJson } from "../functions/errorJsonGen";
-import { TokenPayload } from "../functions/token";
-import tokenParser from "../middleware/token-parser";
-import CommentModel from "../models/comment";
-import SubcommentModel from "../models/subcomment";
+import {
+  defaultErrorCode,
+  defaultErrorJson,
+} from "../functions/errorJsonGen.js";
+import { TokenPayload } from "../functions/token.js";
+import tokenParser from "../middleware/token-parser.js";
+import CommentModel from "../models/comment.js";
+import SubcommentModel from "../models/subcomment.js";
 
 export const getMoreSubcomments = async (req: Request, res: Response) => {
   const commentId = req.params["commentId"];
-  const lastCommentDate = req.params["lastDate"];
+  const lastSubcommentDate = req.params["lastDate"];
 
-  if (!commentId || !lastCommentDate) {
+  if (!commentId || !lastSubcommentDate) {
     return res
       .status(defaultErrorCode["missing data"])
       .json(defaultErrorJson("missing data"));
@@ -18,7 +21,7 @@ export const getMoreSubcomments = async (req: Request, res: Response) => {
 
   try {
     const subcomments = await SubcommentModel.find(
-      { commentId, createdAt: { $lt: new Date(lastCommentDate) } },
+      { commentId, createdAt: { $lt: new Date(lastSubcommentDate) } },
       {},
       { sort: { createdAt: -1 }, limit: 3 }
     );
@@ -106,13 +109,12 @@ const deleteSubcomment = async (req: Request, res: Response) => {
       $inc: {
         subcommentsCount: -1,
       },
-      $pop: {
+      $pull: {
         subcomments: findedSubcomment._id,
       },
     });
 
     await SubcommentModel.findByIdAndDelete(subcommentId);
-
     return res.status(200).send(findedSubcomment);
   } catch (err) {
     return res
