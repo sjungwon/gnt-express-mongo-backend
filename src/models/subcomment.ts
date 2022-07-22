@@ -5,8 +5,10 @@ export interface SubcommentType {
   postId: mongoose.Types.ObjectId;
   commentId: mongoose.Types.ObjectId;
   user: mongoose.Types.ObjectId;
+  category: mongoose.Types.ObjectId;
   profile: mongoose.Types.ObjectId;
   text: string;
+  blocked: boolean;
   createdAt?: Date;
 }
 
@@ -24,6 +26,11 @@ const SubcommentSchema = new mongoose.Schema<SubcommentType>({
     requrie: true,
     ref: "users",
   },
+  category: {
+    type: mongoose.SchemaTypes.ObjectId,
+    ref: "categories",
+    require: true,
+  },
   profile: {
     type: mongoose.SchemaTypes.ObjectId,
     requrie: true,
@@ -32,6 +39,10 @@ const SubcommentSchema = new mongoose.Schema<SubcommentType>({
   text: {
     type: String,
     require: true,
+  },
+  blocked: {
+    type: Boolean,
+    default: false,
   },
   createdAt: {
     type: Date,
@@ -56,6 +67,7 @@ SubcommentSchema.pre("save", async function (next) {
 SubcommentSchema.pre(/^find/, function (next) {
   this.populate({ path: "profile" });
   this.populate({ path: "user", select: "username" });
+  this.populate({ path: "category", select: "title" });
   next();
 });
 

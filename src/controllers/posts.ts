@@ -5,8 +5,10 @@ import {
   defaultErrorJson,
 } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
+import CategoryModel from "../models/category.js";
 import CommentModel from "../models/comment.js";
 import PostModel, { PostType } from "../models/post.js";
+import UserModel from "../models/userModel.js";
 import S3 from "../storage/s3.js";
 
 interface AddPostReqData {
@@ -32,6 +34,125 @@ export const getPosts = async (req: Request, res: Response) => {
     }
     const posts = await PostModel.find(
       {
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+export const getPostsByCategoryId = async (req: Request, res: Response) => {
+  const categoryId: string = (req.params.categoryId as string) || "";
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  if (!categoryId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { category: categoryId },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        category: categoryId,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+export const getPostsByProfileId = async (req: Request, res: Response) => {
+  const profileId: string = (req.params.profileId as string) || "";
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  if (!profileId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { profile: profileId },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        profile: profileId,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+export const getPostsByUsername = async (req: Request, res: Response) => {
+  const username: string = (req.params.username as string) || "";
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  if (!username) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  const decodeUsername = decodeURIComponent(username);
+
+  try {
+    const user = await UserModel.findOne(
+      { username: decodeUsername },
+      { select: "_id" }
+    );
+    if (!user) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { user: user._id },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        user: user._id,
         createdAt: { $lt: new Date(lastPost) },
       },
       {},
@@ -219,6 +340,59 @@ export const updatePost = async (req: Request, res: Response) => {
     res.status(201).json(updatedPost);
   } catch (error: any) {
     res.status(409).json({ error: error.message });
+  }
+};
+
+export const blockPost = async (req: Request, res: Response) => {
+  const userData = req.parseToken as TokenPayload;
+
+  const postId = req.params["id"] as string;
+
+  try {
+    const post = await PostModel.findById(postId);
+    if (!post) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    const category = await CategoryModel.findById(post.category._id);
+    if (!category) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+
+    if (category.user._id.toString() !== userData.id.toString()) {
+      return res
+        .status(defaultErrorCode["unauthorized request"])
+        .json(defaultErrorJson("unauthorized request"));
+    }
+
+    if (post.postImages.length) {
+      if (!process.env.S3_BUCKET_NAME) {
+        return res.status(500).send("bucket name missing");
+      }
+      const removeKeys = post.postImages.map((imageObj) => ({
+        Key: imageObj.Key,
+      }));
+      const deleteParams: AWS.S3.DeleteObjectsRequest = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Delete: {
+          Objects: removeKeys,
+        },
+      };
+      await S3.deleteObjects(deleteParams).promise();
+    }
+    await PostModel.findByIdAndUpdate(postId, {
+      postImages: [],
+      text: "차단된 포스트",
+      blocked: true,
+    });
+    return res.status(201).send("block post successfully");
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
   }
 };
 

@@ -5,6 +5,7 @@ import {
   defaultErrorJson,
 } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
+import CategoryModel from "../models/category.js";
 import CommentModel, { CommentType } from "../models/comment.js";
 import PostModel from "../models/post.js";
 import SubcommentModel from "../models/subcomment.js";
@@ -13,6 +14,7 @@ interface AddCommentReqData {
   postId?: string;
   profile?: string;
   text?: string;
+  category?: string;
 }
 
 export const getMoreComment = async (req: Request, res: Response) => {
@@ -45,7 +47,12 @@ export const addComment = async (req: Request, res: Response) => {
 
   const reqData: AddCommentReqData = req.body;
 
-  if (!reqData?.profile || !reqData.text || !reqData.postId) {
+  if (
+    !reqData?.profile ||
+    !reqData.text ||
+    !reqData.postId ||
+    !reqData.category
+  ) {
     return res
       .status(defaultErrorCode["missing data"])
       .json(defaultErrorJson("missing data"));
@@ -53,6 +60,7 @@ export const addComment = async (req: Request, res: Response) => {
 
   const commentData: CommentType = {
     user: userData.id,
+    category: new mongoose.Types.ObjectId(reqData.category),
     postId: new mongoose.Types.ObjectId(reqData.postId),
     profile: new mongoose.Types.ObjectId(reqData.profile),
     text: reqData.text,
@@ -106,6 +114,46 @@ export const updateComment = async (req: Request, res: Response) => {
     );
 
     return res.status(201).json(updateComment);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+export const blockComment = async (req: Request, res: Response) => {
+  const userData = req.parseToken as TokenPayload;
+
+  const commentId = req.params["id"];
+  if (!commentId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    const category = await CategoryModel.findById(comment.category._id);
+    if (!category) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    if (category.user._id.toString() !== userData.id.toString()) {
+      return res
+        .status(defaultErrorCode["unauthorized request"])
+        .json(defaultErrorJson("unauthorized request"));
+    }
+    await CommentModel.findByIdAndUpdate(commentId, {
+      text: "차단된 댓글",
+      blocked: true,
+    });
+    return res.status(201).send("block comment successfully");
   } catch (err) {
     return res
       .status(defaultErrorCode["server error"])

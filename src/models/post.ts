@@ -18,6 +18,7 @@ export interface PostType {
   createdAt?: Date;
   comments?: mongoose.Types.ObjectId[];
   commentsCount?: number;
+  blocked?: boolean;
 }
 
 const ImageSchema = new mongoose.Schema<ImageType>({
@@ -70,6 +71,10 @@ const PostSchema = new mongoose.Schema<PostType>({
   commentsCount: {
     type: Number,
     default: 0,
+  },
+  blocked: {
+    type: Boolean,
+    default: false,
   },
   createdAt: {
     type: Date,

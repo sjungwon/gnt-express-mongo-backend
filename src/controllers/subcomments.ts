@@ -6,6 +6,7 @@ import {
 } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
 import tokenParser from "../middleware/token-parser.js";
+import CategoryModel from "../models/category.js";
 import CommentModel from "../models/comment.js";
 import SubcommentModel from "../models/subcomment.js";
 
@@ -36,6 +37,7 @@ export const getMoreSubcomments = async (req: Request, res: Response) => {
 interface CreateSubcommentData {
   postId?: string;
   commentId?: string;
+  category?: string;
   profile?: string;
   text?: string;
 }
@@ -48,6 +50,7 @@ const createSubcomment = async (req: Request, res: Response) => {
   if (
     !createSubCommentData.postId ||
     !createSubCommentData.commentId ||
+    !createSubCommentData.category ||
     !createSubCommentData.profile ||
     !createSubCommentData.text
   ) {
@@ -60,6 +63,7 @@ const createSubcomment = async (req: Request, res: Response) => {
     user: userData.id,
     postId: createSubCommentData.postId,
     commentId: createSubCommentData.commentId,
+    category: createSubCommentData.category,
     profile: createSubCommentData.profile,
     text: createSubCommentData.text,
   };
@@ -183,3 +187,45 @@ const updateSubcomment = async (req: Request, res: Response) => {
 };
 
 export const updateSubcommentWithParsedToken = [tokenParser, updateSubcomment];
+
+const blockSubcomment = async (req: Request, res: Response) => {
+  const userData = req.parseToken as TokenPayload;
+
+  const subcommentId = req.params["id"];
+  if (!subcommentId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    const subcomment = await SubcommentModel.findById(subcommentId);
+    if (!subcomment) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    const category = await CategoryModel.findById(subcomment.category._id);
+    if (!category) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    if (category.user._id.toString() !== userData.id.toString()) {
+      return res
+        .status(defaultErrorCode["unauthorized request"])
+        .json(defaultErrorJson("unauthorized request"));
+    }
+    await SubcommentModel.findByIdAndUpdate(subcommentId, {
+      text: "차단된 댓글",
+      blocked: true,
+    });
+    return res.status(201).send("block subcomment successfully");
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+export const blockSubcommentWithParsedToken = [tokenParser, blockSubcomment];

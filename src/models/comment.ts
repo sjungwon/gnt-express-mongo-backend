@@ -4,10 +4,12 @@ import PostModel from "./post.js";
 export interface CommentType {
   postId: mongoose.Types.ObjectId;
   user: mongoose.Types.ObjectId;
+  category: mongoose.Types.ObjectId;
   profile: mongoose.Types.ObjectId;
   text: string;
   subcomments?: mongoose.Types.ObjectId[];
   subcommentsCount?: number;
+  blocked?: boolean;
   createdAt?: Date;
 }
 
@@ -19,6 +21,11 @@ const CommentSchema = new mongoose.Schema<CommentType>({
   user: {
     type: mongoose.SchemaTypes.ObjectId,
     ref: "users",
+    require: true,
+  },
+  category: {
+    type: mongoose.SchemaTypes.ObjectId,
+    ref: "categories",
     require: true,
   },
   profile: {
@@ -39,6 +46,10 @@ const CommentSchema = new mongoose.Schema<CommentType>({
     type: Number,
     default: 0,
   },
+  blocked: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: new Date(),
@@ -48,6 +59,7 @@ const CommentSchema = new mongoose.Schema<CommentType>({
 CommentSchema.pre(/^find/, function (next) {
   this.populate({ path: "profile" });
   this.populate({ path: "user", select: "username" });
+  this.populate({ path: "category", select: "title" });
   this.populate({
     path: "subcomments",
     options: { sort: { createdAt: -1 }, limit: 1 },

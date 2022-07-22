@@ -30,6 +30,11 @@ categorySchema.pre("save", function (next) {
   next();
 });
 
+categorySchema.pre(/^find/, function (next) {
+  this.populate({ path: "user", select: "username" });
+  next();
+});
+
 const CategoryModel = mongoose.model("categories", categorySchema);
 
 export default CategoryModel;

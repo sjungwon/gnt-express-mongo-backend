@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  blockSubcommentWithParsedToken,
   createSubcommentWithParsedToken,
   deleteSubcommentWithParsedToken,
   getMoreSubcomments,
@@ -13,6 +14,8 @@ router.get("/:commentId/:lastDate", getMoreSubcomments);
 router.post("/", createSubcommentWithParsedToken);
 
 router.patch("/", updateSubcommentWithParsedToken);
+
+router.patch("/block/:id", blockSubcommentWithParsedToken);
 
 router.delete("/:id", deleteSubcommentWithParsedToken);
 
