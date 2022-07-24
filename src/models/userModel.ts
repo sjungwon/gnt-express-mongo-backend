@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   },
 });
 
+//유저 저장할 때 date를 현재로 지정해서 저장
 userSchema.pre("save", function (next) {
   this.createdAt = new Date();
   next();
