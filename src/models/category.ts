@@ -25,6 +25,16 @@ const categorySchema = new mongoose.Schema<CategoryType>({
   },
 });
 
+categorySchema.pre("save", function (next) {
+  this.createdAt = new Date();
+  next();
+});
+
+categorySchema.pre(/^find/, function (next) {
+  this.populate({ path: "user", select: "username" });
+  next();
+});
+
 const CategoryModel = mongoose.model("categories", categorySchema);
 
 export default CategoryModel;

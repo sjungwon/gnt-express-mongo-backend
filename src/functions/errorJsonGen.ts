@@ -62,6 +62,15 @@ export const defaultErrorJson = (
   }
 };
 
+export const defaultErrorCode = {
+  "missing data": 400,
+  "not signin": 401,
+  "not found": 404,
+  "unauthorized request": 403,
+  "data conflict": 409,
+  "server error": 500,
+};
+
 export const authErrorJson = (type: AuthErrorType["type"]): AuthErrorType => {
   switch (type) {
     case "Login fail":
