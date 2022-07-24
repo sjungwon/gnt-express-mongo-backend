@@ -43,6 +43,7 @@ const profileSchema = new mongoose.Schema<ProfileType>({
   },
 });
 
+//find시 category, user join 해서 반환
 profileSchema.pre(/^find/, function (next) {
   this.populate({
     path: "category",
@@ -52,6 +53,7 @@ profileSchema.pre(/^find/, function (next) {
   next();
 });
 
+//저장시 현재 날짜로 저장
 profileSchema.pre("save", function (next) {
   this.createdAt = new Date();
   next();
