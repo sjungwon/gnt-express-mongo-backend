@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { defaultErrorJson } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
 import ProfileModel, { ProfileType } from "../models/profile.js";
+import UserModel from "../models/userModel.js";
 
 //profile id로 특정 profile get
 export const getProfile: RequestHandler = async (req, res) => {
@@ -29,22 +30,16 @@ export const getProfile: RequestHandler = async (req, res) => {
 };
 
 //user의 profile 정보 get
-//user 정보 token parser 이용
-export const getMyProfile: RequestHandler = async (req, res) => {
-  const userData: TokenPayload | undefined = req.body.parseToken;
+export const getProfilesByUserId: RequestHandler = async (req, res) => {
+  const userId = req.params["id"];
 
-  if (!userData) {
-    return res.status(401).json(defaultErrorJson("not signin"));
+  if (!userId) {
+    return res.status(400).json(defaultErrorJson("missing data"));
   }
-
-  const creator = {
-    username: userData.username,
-    id: userData.id,
-  };
 
   try {
     const profiles = await ProfileModel.find({
-      "creator.id": creator.id,
+      user: userId,
     })
       .populate({
         path: "category",
@@ -53,8 +48,32 @@ export const getMyProfile: RequestHandler = async (req, res) => {
       .populate({ path: "user", select: "username" });
     return res.status(200).send(profiles);
   } catch (err) {
-    console.log(err);
-    return res.status(500).json(defaultErrorJson("server error"));
+    return res.status(500).json(defaultErrorJson("server error", err));
+  }
+};
+
+export const getProfilesByUsername: RequestHandler = async (req, res) => {
+  const username = decodeURIComponent(req.params["username"]);
+  if (!username) {
+    return res.status(400).json(defaultErrorJson("missing data"));
+  }
+
+  try {
+    const user = await UserModel.findOne({ username });
+    if (!user) {
+      return res.status(404).json(defaultErrorJson("not found"));
+    }
+    const profiles = await ProfileModel.find({
+      user: user._id,
+    })
+      .populate({
+        path: "category",
+        select: "title",
+      })
+      .populate({ path: "user", select: "username" });
+    return res.status(200).send(profiles);
+  } catch (err) {
+    return res.status(500).json(defaultErrorJson("server error", err));
   }
 };
 
@@ -97,7 +116,11 @@ export const addProfiles: RequestHandler = async (req, res) => {
 
     await newProfile.save();
 
-    return res.status(201).json(newProfile);
+    const newProfileRes = await ProfileModel.findOne({ _id: newProfile._id })
+      .populate({ path: "category", select: "title" })
+      .populate({ path: "user", select: "username" });
+
+    return res.status(201).json(newProfileRes);
   } catch (err: any) {
     return res.status(500).json(defaultErrorJson("server error", err));
   }
@@ -113,6 +136,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
 
   const profileId: string = req.params["id"];
 
+  //닉네임 변경이 안되고 있음 -> 변경처리 해야함
   const { name: newName }: { name: string } = req.body;
 
   if (!newName) {
@@ -127,10 +151,18 @@ export const updateProfile: RequestHandler = async (req, res) => {
     if (prevProfile.user.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
-    prevProfile.update(undefined, {
-      name: newName,
-    });
-    return res.status(201).json("update profile successfully");
+
+    const updatedProfile = await ProfileModel.findByIdAndUpdate(
+      profileId,
+      {
+        name: newName,
+      },
+      { new: true }
+    )
+      .populate({ path: "category", select: "title" })
+      .populate({ path: "user", select: "username" });
+
+    return res.status(201).json(updatedProfile);
   } catch (err: any) {
     return res.status(500).json(defaultErrorJson("server error", err));
   }
@@ -158,9 +190,9 @@ export const deleteProfile: RequestHandler = async (req, res) => {
     if (profile.user.toString() !== userData.id.toString()) {
       return res.status(403).json(defaultErrorJson("unauthorized request"));
     }
-    await profile.delete().exec();
+    await ProfileModel.findByIdAndDelete(profileId);
     return res.status(200).send("delete profile successfully");
   } catch (err) {
-    return res.status(500).json(defaultErrorJson("server error"));
+    return res.status(500).json(defaultErrorJson("server error", err));
   }
 };

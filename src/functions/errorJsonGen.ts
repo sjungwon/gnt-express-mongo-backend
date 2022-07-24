@@ -8,8 +8,8 @@ interface ServerErrorType {
   type: "server error";
 }
 
-const serverErrorJson = (err?: Error): ServerErrorType => ({
-  error: err ? err : "serverError",
+const serverErrorJson = (err?: any): ServerErrorType => ({
+  error: err ? err.message : "serverError",
   type: "server error",
 });
 
