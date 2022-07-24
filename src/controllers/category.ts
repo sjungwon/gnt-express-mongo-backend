@@ -6,12 +6,15 @@ import {
 } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
 import CategoryModel, { CategoryType } from "../models/category.js";
+import CommentModel from "../models/comment.js";
+import PostModel from "../models/post.js";
 import ProfileModel, { ProfileType } from "../models/profile.js";
+import SubcommentModel from "../models/subcomment.js";
 
 //카테고리(게시판) get
 export const getCategory = async (req: Request, res: Response) => {
   try {
-    const category = await CategoryModel.find();
+    const category = await CategoryModel.find({}, {}, { sort: { title: 1 } });
     res.status(200).json(category);
   } catch (err: any) {
     res.status(500).json(defaultErrorJson("server error", err));
@@ -106,8 +109,25 @@ export const removeCategory = async (req: Request, res: Response) => {
   }
 
   try {
+    const profiles = await ProfileModel.find({ category: categoryId });
+
+    if (profiles.length) {
+      return res.status(403).json({
+        type: "unauthorized request",
+        error: "can't delete category with content",
+      });
+    }
+
+    const posts = await PostModel.find({ category: categoryId });
+    if (posts.length) {
+      return res.status(403).json({
+        type: "unauthorized request",
+        error: "can't delete category with content",
+      });
+    }
+
     await CategoryModel.findByIdAndRemove(categoryId);
-    await ProfileModel.deleteMany({ "category.id": categoryId });
+
     return res.status(200).send("remove category successfully");
   } catch (err: any) {
     return res.status(500).send(defaultErrorJson("server error", err));

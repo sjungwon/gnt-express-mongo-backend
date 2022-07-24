@@ -18,7 +18,6 @@ const uploadProfileImage = async (
   next: NextFunction
 ) => {
   const file: Express.Multer.File | undefined = req.file;
-  console.log(file);
   if (!file) {
     return next();
   }
