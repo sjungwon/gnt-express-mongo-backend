@@ -56,6 +56,8 @@ const CommentSchema = new mongoose.Schema<CommentType>({
   },
 });
 
+//댓글 쿼리 시
+//프로필, 유저, 카테고리, 대댓글 join
 CommentSchema.pre(/^find/, function (next) {
   this.populate({ path: "profile" });
   this.populate({ path: "user", select: "username" });
@@ -67,6 +69,8 @@ CommentSchema.pre(/^find/, function (next) {
   next();
 });
 
+//댓글 저장 시
+//포스트 데이터 댓글 리스트에 추가, count + 1
 CommentSchema.pre("save", async function (next) {
   this.createdAt = new Date();
   const postId = this.postId;
@@ -82,7 +86,6 @@ CommentSchema.pre("save", async function (next) {
   next();
 });
 
-//model 정의 + 컨트롤러에서 comment 추가되면 -> commnet collection에 추가 + post에 commentid 남기기
 const CommentModel = mongoose.model("comments", CommentSchema);
 
 export default CommentModel;
