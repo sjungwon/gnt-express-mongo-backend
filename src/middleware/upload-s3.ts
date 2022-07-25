@@ -7,7 +7,7 @@ import tokenParser from "./token-parser.js";
 import sharp from "sharp";
 import S3 from "../storage/s3.js";
 
-//multer 사용
+//multer 사용 - form data + file data
 const formParser = multer();
 
 //s3 데이터
@@ -79,11 +79,13 @@ export const uploadProfileImageFileWithTokenParser = [
   uploadProfileImage,
 ];
 
+//포스트 이미지 업로드
 const uploadPostImages = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  //multer에서 처리한 파일 데이터
   const files: Express.Multer.File[] | undefined = req.files as
     | Express.Multer.File[]
     | undefined;
@@ -93,18 +95,16 @@ const uploadPostImages = async (
     return next();
   }
 
-  const userData: TokenPayload | undefined = req.parseToken;
+  const userData = req.parseToken as TokenPayload;
 
-  if (!userData) {
-    return res.status(403).send(tokenErrorJson());
-  }
-
+  //S3 설정이 안된 경우
   if (!process.env.S3_BUCKET_NAME) {
     return res.status(500).send("bucket name missing");
   }
 
   try {
     const date = new Date().toISOString();
+    //이미지 업로드 - 이미지 리사이즈 후 업로드
     const resizedFiles = await Promise.all(
       files.map(async (file) => {
         const resizedFile = await sharp(file.buffer)
@@ -130,6 +130,7 @@ const uploadPostImages = async (
       })
     );
 
+    //req 요청에 이미지 업로드 데이터 삽입
     req.postImageObjArr = resizedFiles;
     next();
   } catch (err) {
@@ -137,6 +138,7 @@ const uploadPostImages = async (
   }
 };
 
+//middleware 묶어서 export
 export const uploadPostImageFilesWithTokenParser = [
   formParser.array("newImages"),
   tokenParser,
