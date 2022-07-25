@@ -82,6 +82,8 @@ const PostSchema = new mongoose.Schema<PostType>({
   },
 });
 
+//post 데이터 쿼리 시 profile, category, user, comment join
+//comment join할 때 comment쪽 미들웨어에서 subcomment join함
 PostSchema.pre(/^find/, function (next) {
   this.populate({ path: "profile" });
   this.populate({ path: "category", select: "title" });
@@ -93,6 +95,7 @@ PostSchema.pre(/^find/, function (next) {
   next();
 });
 
+//포스트 저장 시 현재 시간 저장
 PostSchema.pre("save", function (next) {
   this.createdAt = new Date();
   next();

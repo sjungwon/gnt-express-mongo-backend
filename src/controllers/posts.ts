@@ -5,9 +5,12 @@ import {
   defaultErrorJson,
 } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
+import tokenParser from "../middleware/token-parser.js";
+import { uploadPostImageFilesWithTokenParser } from "../middleware/upload-s3.js";
 import CategoryModel from "../models/category.js";
 import CommentModel from "../models/comment.js";
 import PostModel, { PostType } from "../models/post.js";
+import SubcommentModel from "../models/subcomment.js";
 import UserModel from "../models/userModel.js";
 import S3 from "../storage/s3.js";
 
@@ -17,157 +20,8 @@ interface AddPostReqData {
   text: string;
 }
 
-//페이지 구분 -> 특정 날짜 이전 데이터를 가져옴
-//front에서 받아온 데이터가 있으면 마지막 데이터의 날짜를 ?last={value} 쿼리 스트링으로 전달
-//해당 날 이후의 데이터를 전송
-export const getPosts = async (req: Request, res: Response) => {
-  const lastPost: string = (req.query.last as string) || "";
-
-  try {
-    if (!lastPost) {
-      const posts = await PostModel.find(
-        {},
-        {},
-        { sort: { createdAt: -1 }, limit: 6 }
-      );
-      return res.status(200).json(posts);
-    }
-    const posts = await PostModel.find(
-      {
-        createdAt: { $lt: new Date(lastPost) },
-      },
-      {},
-      { sort: { createdAt: -1 }, limit: 6 }
-    );
-    return res.status(200).json(posts);
-  } catch (err) {
-    return res
-      .status(defaultErrorCode["server error"])
-      .json(defaultErrorJson("server error", err));
-  }
-};
-
-export const getPostsByCategoryId = async (req: Request, res: Response) => {
-  const categoryId: string = (req.params.categoryId as string) || "";
-
-  const lastPost: string = (req.query.last as string) || "";
-
-  if (!categoryId) {
-    return res
-      .status(defaultErrorCode["missing data"])
-      .json(defaultErrorJson("missing data"));
-  }
-
-  try {
-    if (!lastPost) {
-      const posts = await PostModel.find(
-        { category: categoryId },
-        {},
-        { sort: { createdAt: -1 }, limit: 6 }
-      );
-      return res.status(200).json(posts);
-    }
-    const posts = await PostModel.find(
-      {
-        category: categoryId,
-        createdAt: { $lt: new Date(lastPost) },
-      },
-      {},
-      { sort: { createdAt: -1 }, limit: 6 }
-    );
-    return res.status(200).json(posts);
-  } catch (err) {
-    return res
-      .status(defaultErrorCode["server error"])
-      .json(defaultErrorJson("server error", err));
-  }
-};
-
-export const getPostsByProfileId = async (req: Request, res: Response) => {
-  const profileId: string = (req.params.profileId as string) || "";
-
-  const lastPost: string = (req.query.last as string) || "";
-
-  if (!profileId) {
-    return res
-      .status(defaultErrorCode["missing data"])
-      .json(defaultErrorJson("missing data"));
-  }
-
-  try {
-    if (!lastPost) {
-      const posts = await PostModel.find(
-        { profile: profileId },
-        {},
-        { sort: { createdAt: -1 }, limit: 6 }
-      );
-      return res.status(200).json(posts);
-    }
-    const posts = await PostModel.find(
-      {
-        profile: profileId,
-        createdAt: { $lt: new Date(lastPost) },
-      },
-      {},
-      { sort: { createdAt: -1 }, limit: 6 }
-    );
-    return res.status(200).json(posts);
-  } catch (err) {
-    return res
-      .status(defaultErrorCode["server error"])
-      .json(defaultErrorJson("server error", err));
-  }
-};
-
-export const getPostsByUsername = async (req: Request, res: Response) => {
-  const username: string = (req.params.username as string) || "";
-
-  const lastPost: string = (req.query.last as string) || "";
-
-  if (!username) {
-    return res
-      .status(defaultErrorCode["missing data"])
-      .json(defaultErrorJson("missing data"));
-  }
-
-  const decodeUsername = decodeURIComponent(username);
-
-  try {
-    const user = await UserModel.findOne(
-      { username: decodeUsername },
-      { select: "_id" }
-    );
-    if (!user) {
-      return res
-        .status(defaultErrorCode["not found"])
-        .json(defaultErrorJson("not found"));
-    }
-    if (!lastPost) {
-      const posts = await PostModel.find(
-        { user: user._id },
-        {},
-        { sort: { createdAt: -1 }, limit: 6 }
-      );
-      return res.status(200).json(posts);
-    }
-    const posts = await PostModel.find(
-      {
-        user: user._id,
-        createdAt: { $lt: new Date(lastPost) },
-      },
-      {},
-      { sort: { createdAt: -1 }, limit: 6 }
-    );
-    return res.status(200).json(posts);
-  } catch (err) {
-    return res
-      .status(defaultErrorCode["server error"])
-      .json(defaultErrorJson("server error", err));
-  }
-};
-
 //최신 데이터 순으로 데이터를 전송하기 때문에
-//단순 skip으로 구현하면
+//단순 skip으로 페이지 구현하면
 //첫번째 페이지를 전송한 이후에
 //새로운 post가 추가되면
 //다음 페이지 가져갈 때 첫번째 페이지 중 마지막 post를
@@ -199,14 +53,172 @@ export const getPostsByUsername = async (req: Request, res: Response) => {
 //   }
 // };
 
-export const createPost = async (req: Request, res: Response) => {
-  const userData = req.parseToken;
+//페이지 구분 -> 특정 날짜를 기준으로 데이터 전송
+//front에서 처음 요청한 경우가 아니면 마지막 데이터의 날짜를 ?last={value} 쿼리 스트링으로 전달
+//해당 날 이후의 데이터를 전송
+export const getPosts = async (req: Request, res: Response) => {
+  const lastPost: string = (req.query.last as string) || "";
 
-  if (!userData) {
+  try {
+    if (!lastPost) {
+      //첫 요청인 경우
+      //생성일을 기준으로 정렬
+      //6개씩 전송
+      const posts = await PostModel.find(
+        {},
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    //첫 요청이 아닌 경우
+    //받아간 데이터의 생성일 이전 데이터 쿼리
+    //생성일로 정렬, 6개 전송
+    const posts = await PostModel.find(
+      {
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
     return res
-      .status(defaultErrorCode["not signin"])
-      .json(defaultErrorJson("not signin"));
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
   }
+};
+
+//카테고리별 포스트 요청
+export const getPostsByCategoryId = async (req: Request, res: Response) => {
+  const categoryId: string = (req.params.categoryId as string) || "";
+
+  if (!categoryId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  try {
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { category: categoryId },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        category: categoryId,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+//프로필별 포스트 요청
+export const getPostsByProfileId = async (req: Request, res: Response) => {
+  const profileId: string = (req.params.profileId as string) || "";
+
+  if (!profileId) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  try {
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { profile: profileId },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        profile: profileId,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+//유저별 포스트 요청
+export const getPostsByUsername = async (req: Request, res: Response) => {
+  const username: string = (req.params.username as string) || "";
+
+  if (!username) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  const decodeUsername = decodeURIComponent(username);
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  try {
+    //존재하는 유저인지 확인
+    const user = await UserModel.findOne(
+      { username: decodeUsername },
+      { select: "_id" }
+    );
+    if (!user) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+    //존재하는 경우
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { user: user._id },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        user: user._id,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+//포스트 생성
+//token parser
+//formdata - multer
+//s3 upload
+const createPost = async (req: Request, res: Response) => {
+  const userData = req.parseToken as TokenPayload;
 
   const postReqData = req.body as AddPostReqData;
   if (!postReqData.profile || !postReqData.category) {
@@ -215,8 +227,11 @@ export const createPost = async (req: Request, res: Response) => {
       .json(defaultErrorJson("missing data"));
   }
 
+  //middleware에서 처리한 포스트 이미지 배열
+  //s3에 업로드 후 Key, URL 형태의 객체로 들어옴
   const postImages = req.postImageObjArr || [];
 
+  //포스트 데이터
   const newPostData: PostType = {
     profile: new mongoose.Types.ObjectId(postReqData.profile),
     category: new mongoose.Types.ObjectId(postReqData.category),
@@ -238,6 +253,11 @@ export const createPost = async (req: Request, res: Response) => {
   }
 };
 
+export const createPostWithUploadS3AndTokenParser = [
+  ...uploadPostImageFilesWithTokenParser,
+  createPost,
+];
+
 interface ImageType {
   URL: string;
   Key: string;
@@ -248,7 +268,10 @@ interface UpdatePostReqData extends AddPostReqData {
   _id: string;
 }
 
-export const updatePost = async (req: Request, res: Response) => {
+//tokenParser
+//form - multer
+//upload s3
+const updatePost = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
   const updatePostReqData = req.body as UpdatePostReqData;
@@ -343,18 +366,27 @@ export const updatePost = async (req: Request, res: Response) => {
   }
 };
 
-export const blockPost = async (req: Request, res: Response) => {
+export const updatePostWithUploadS3AndTokenParser = [
+  ...uploadPostImageFilesWithTokenParser,
+  updatePost,
+];
+
+const blockPost = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
   const postId = req.params["id"] as string;
 
   try {
     const post = await PostModel.findById(postId);
+
+    //포스트가 없는 경우
     if (!post) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
+
+    //포스트 카테고리 쿼리 - 카테고리 관리자 확인
     const category = await CategoryModel.findById(post.category._id);
     if (!category) {
       return res
@@ -362,12 +394,14 @@ export const blockPost = async (req: Request, res: Response) => {
         .json(defaultErrorJson("not found"));
     }
 
+    //관리자 확인
     if (category.user._id.toString() !== userData.id.toString()) {
       return res
         .status(defaultErrorCode["unauthorized request"])
         .json(defaultErrorJson("unauthorized request"));
     }
 
+    //이미지 제거
     if (post.postImages.length) {
       if (!process.env.S3_BUCKET_NAME) {
         return res.status(500).send("bucket name missing");
@@ -383,6 +417,8 @@ export const blockPost = async (req: Request, res: Response) => {
       };
       await S3.deleteObjects(deleteParams).promise();
     }
+
+    //차단
     await PostModel.findByIdAndUpdate(postId, {
       postImages: [],
       text: "차단된 포스트",
@@ -396,25 +432,30 @@ export const blockPost = async (req: Request, res: Response) => {
   }
 };
 
-export const deletePost = async (req: Request, res: Response) => {
+export const blockPostWithTokenParser = [tokenParser, blockPost];
+
+const deletePost = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
   const postId = req.params["id"] as string;
 
   try {
     const post = await PostModel.findById(postId);
+    //포스트 없는 경우
     if (!post) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
 
+    //작성자가 아닌 경우
     if (post.user._id.toString() !== userData.id.toString()) {
       return res
         .status(defaultErrorCode["unauthorized request"])
         .json(defaultErrorJson("unauthorized request"));
     }
 
+    //이미지 제거
     if (post.postImages.length) {
       if (!process.env.S3_BUCKET_NAME) {
         return res.status(500).send("bucket name missing");
@@ -430,7 +471,11 @@ export const deletePost = async (req: Request, res: Response) => {
       };
       await S3.deleteObjects(deleteParams).promise();
     }
+    //포스트에 포함된 댓글 제거, 대댓글 제거
+    await SubcommentModel.deleteMany({ postId });
     await CommentModel.deleteMany({ postId });
+
+    //포스트 제거
     await PostModel.findByIdAndDelete(postId);
     return res.status(200).send("delete post successfully");
   } catch (err) {
@@ -440,8 +485,11 @@ export const deletePost = async (req: Request, res: Response) => {
   }
 };
 
-//좋아요인 경우
-export const postLikeHandler = async (req: Request, res: Response) => {
+export const deletePostWithTokenParser = [tokenParser, deletePost];
+
+//좋아요 처리
+//token parser
+export const likePost = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
   const postId = req.params["id"];
@@ -455,13 +503,14 @@ export const postLikeHandler = async (req: Request, res: Response) => {
   try {
     const prevLikeData = await PostModel.findById(postId);
 
+    //post가 없는 경우
     if (!prevLikeData) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
 
-    //제거
+    //좋아요가 이미 있는 경우 - 취소하기 위해 누른 경우
     if (prevLikeData.likeUsers?.includes(userData.id)) {
       const resData = await PostModel.findByIdAndUpdate(
         postId,
@@ -474,7 +523,7 @@ export const postLikeHandler = async (req: Request, res: Response) => {
       return res.status(201).json(resData);
     }
 
-    //싫어요 제거 후 좋아요 추가
+    //싫어요가 있는 경우 - 싫어요 제거 후 좋아요 추가
     if (prevLikeData.dislikeUsers?.includes(userData.id)) {
       const resData = await PostModel.findByIdAndUpdate(
         postId,
@@ -506,8 +555,10 @@ export const postLikeHandler = async (req: Request, res: Response) => {
   }
 };
 
-//싫어요인 경우
-export const postDislikeHandler = async (req: Request, res: Response) => {
+export const likePostWithTokenParser = [tokenParser, likePost];
+
+//포스트 싫어요
+export const dislikePost = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
   const postId = req.params["id"];
@@ -521,13 +572,14 @@ export const postDislikeHandler = async (req: Request, res: Response) => {
   try {
     const prevLikeData = await PostModel.findById(postId);
 
+    //포스트가 없는 경우
     if (!prevLikeData) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
 
-    //이미 있는 경우 제거
+    //싫어요가 이미 있는 경우 - 싫어요 취소
     if (prevLikeData.dislikeUsers?.includes(userData.id)) {
       const resData = await PostModel.findByIdAndUpdate(
         postId,
@@ -541,7 +593,7 @@ export const postDislikeHandler = async (req: Request, res: Response) => {
       return res.status(201).json(resData);
     }
 
-    //좋아요가 있는 경우 제거 후 싫아요 추가
+    //좋아요가 있는 경우 - 좋아요 제거 후 싫어요 추가
     if (prevLikeData.likeUsers?.includes(userData.id)) {
       const resData = await PostModel.findByIdAndUpdate(
         postId,
@@ -572,3 +624,5 @@ export const postDislikeHandler = async (req: Request, res: Response) => {
       .json(defaultErrorJson("server error", err));
   }
 };
+
+export const dislikePostWithTokenParser = [tokenParser, dislikePost];

@@ -137,7 +137,7 @@ const uploadPostImages = async (
   }
 };
 
-export const uploadPostImageFiles = [
+export const uploadPostImageFilesWithTokenParser = [
   formParser.array("newImages"),
   tokenParser,
   uploadPostImages,
