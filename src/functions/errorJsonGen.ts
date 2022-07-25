@@ -8,6 +8,7 @@ interface ServerErrorType {
   type: "server error";
 }
 
+//서버 오류 데이터 생성
 const serverErrorJson = (err?: any): ServerErrorType => ({
   error: err ? err.message : "serverError",
   type: "server error",
@@ -27,6 +28,7 @@ interface AuthErrorType extends ErrorResponseType {
   type: "Login fail" | "exist email" | "exist username" | "server error";
 }
 
+//기본적인 오류 데이터 생성
 export const defaultErrorJson = (
   type: DefaultErrorType["type"],
   err?: any
@@ -62,6 +64,7 @@ export const defaultErrorJson = (
   }
 };
 
+//기본 오류 코드
 export const defaultErrorCode = {
   "missing data": 400,
   "not signin": 401,
@@ -71,6 +74,7 @@ export const defaultErrorCode = {
   "server error": 500,
 };
 
+//로그인 오류 데이터 생성
 export const authErrorJson = (type: AuthErrorType["type"]): AuthErrorType => {
   switch (type) {
     case "Login fail":
@@ -99,6 +103,7 @@ interface TokenErrorType extends ErrorResponseType {
   type: "token expired";
 }
 
+//토큰 오류 데이터 생성
 export const tokenErrorJson = (
   type: TokenErrorType["type"] = "token expired"
 ): TokenErrorType => ({

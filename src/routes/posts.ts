@@ -1,18 +1,16 @@
 import express from "express";
 import {
-  blockPost,
-  createPost,
-  deletePost,
+  blockPostWithTokenParser,
+  createPostWithUploadS3AndTokenParser,
+  deletePostWithTokenParser,
+  dislikePostWithTokenParser,
   getPosts,
   getPostsByCategoryId,
   getPostsByProfileId,
   getPostsByUsername,
-  postDislikeHandler,
-  postLikeHandler,
-  updatePost,
+  likePostWithTokenParser,
+  updatePostWithUploadS3AndTokenParser,
 } from "../controllers/posts.js";
-import tokenParser from "../middleware/token-parser.js";
-import { uploadPostImageFiles } from "../middleware/upload-s3.js";
 
 const router = express.Router();
 
@@ -24,16 +22,16 @@ router.get("/profiles/:profileId", getPostsByProfileId);
 
 router.get("/users/:username", getPostsByUsername);
 
-router.post("/", uploadPostImageFiles, createPost);
+router.post("/", createPostWithUploadS3AndTokenParser);
 
-router.patch("/", uploadPostImageFiles, updatePost);
+router.patch("/", updatePostWithUploadS3AndTokenParser);
 
-router.patch("/block/:id", tokenParser, blockPost);
+router.patch("/block/:id", blockPostWithTokenParser);
 
-router.delete("/:id", tokenParser, deletePost);
+router.delete("/:id", deletePostWithTokenParser);
 
-router.patch("/likes/:id", tokenParser, postLikeHandler);
+router.patch("/likes/:id", likePostWithTokenParser);
 
-router.patch("/dislikes/:id", tokenParser, postDislikeHandler);
+router.patch("/dislikes/:id", dislikePostWithTokenParser);
 
 export default router;

@@ -10,6 +10,8 @@ import CategoryModel from "../models/category.js";
 import CommentModel from "../models/comment.js";
 import SubcommentModel from "../models/subcomment.js";
 
+//대댓글 더보기
+//댓글 id, 마지막 대댓글 날짜
 export const getMoreSubcomments = async (req: Request, res: Response) => {
   const commentId = req.params["commentId"];
   const lastSubcommentDate = req.params["lastDate"];
@@ -42,6 +44,8 @@ interface CreateSubcommentData {
   text?: string;
 }
 
+//대댓글 생성
+//tokenParser
 const createSubcomment = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
@@ -83,6 +87,8 @@ const createSubcomment = async (req: Request, res: Response) => {
 
 export const createSubcommentWithParsedToken = [tokenParser, createSubcomment];
 
+//댓글 제거
+//tokenParser
 const deleteSubcomment = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
@@ -97,18 +103,21 @@ const deleteSubcomment = async (req: Request, res: Response) => {
   try {
     const findedSubcomment = await SubcommentModel.findById(subcommentId);
 
+    //대댓글이 없는 경우
     if (!findedSubcomment) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
 
+    //대댓글 작성자가 아닌 경우
     if (findedSubcomment.user._id.toString() !== userData.id.toString()) {
       return res
         .status(defaultErrorCode["unauthorized request"])
         .json(defaultErrorJson("unauthorized request"));
     }
 
+    //댓글 데이터 대댓글 리스트에서 제거할 대댓글 제거, 대댓글 count - 1
     await CommentModel.findByIdAndUpdate(findedSubcomment.commentId, {
       $inc: {
         subcommentsCount: -1,
@@ -118,6 +127,7 @@ const deleteSubcomment = async (req: Request, res: Response) => {
       },
     });
 
+    //제거
     await SubcommentModel.findByIdAndDelete(subcommentId);
     return res.status(200).send(findedSubcomment);
   } catch (err) {
@@ -135,6 +145,8 @@ interface UpdateSubcommentData {
   text?: string;
 }
 
+//대댓글 수정
+//tokenParser
 const updateSubcomment = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
@@ -155,12 +167,14 @@ const updateSubcomment = async (req: Request, res: Response) => {
       updateSubcommentData._id
     );
 
+    //대댓글이 없는 경우
     if (!findedSubcomment) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
 
+    //대댓글 작성자가 아닌 경우
     if (findedSubcomment.user._id.toString() !== userData.id.toString()) {
       return res
         .status(defaultErrorCode["unauthorized request"])
@@ -188,6 +202,8 @@ const updateSubcomment = async (req: Request, res: Response) => {
 
 export const updateSubcommentWithParsedToken = [tokenParser, updateSubcomment];
 
+//대댓글 차단
+//tokenParser
 const blockSubcomment = async (req: Request, res: Response) => {
   const userData = req.parseToken as TokenPayload;
 
@@ -200,22 +216,26 @@ const blockSubcomment = async (req: Request, res: Response) => {
 
   try {
     const subcomment = await SubcommentModel.findById(subcommentId);
+    //대댓글 없는 경우
     if (!subcomment) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
     const category = await CategoryModel.findById(subcomment.category._id);
+    //카테고리 없는 경우
     if (!category) {
       return res
         .status(defaultErrorCode["not found"])
         .json(defaultErrorJson("not found"));
     }
+    //관리자가 아닌 경우
     if (category.user._id.toString() !== userData.id.toString()) {
       return res
         .status(defaultErrorCode["unauthorized request"])
         .json(defaultErrorJson("unauthorized request"));
     }
+    //댓글 차단
     await SubcommentModel.findByIdAndUpdate(subcommentId, {
       text: "차단된 댓글",
       blocked: true,

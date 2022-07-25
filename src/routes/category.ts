@@ -1,11 +1,10 @@
 import express from "express";
 import {
-  addCategory,
+  addCategoryWithTokenParser,
+  deleteCategoryWithTokenParser,
   getCategory,
   getCategoryByTitle,
-  removeCategory,
 } from "../controllers/category.js";
-import tokenParser from "../middleware/token-parser.js";
 
 const router = express.Router();
 
@@ -13,8 +12,8 @@ router.get("/", getCategory);
 
 router.get("/:title", getCategoryByTitle);
 
-router.post("/", tokenParser, addCategory);
+router.post("/", addCategoryWithTokenParser);
 
-router.delete("/:id", tokenParser, removeCategory);
+router.delete("/:id", deleteCategoryWithTokenParser);
 
 export default router;

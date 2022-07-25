@@ -1,29 +1,25 @@
 import express from "express";
 import {
-  addProfiles,
-  deleteProfile,
-  getProfile,
+  createProfileWithUploadS3AndTokenParser,
+  deleteProfileWithTokenParser,
+  getProfileById,
   getProfilesByUserId,
   getProfilesByUsername,
-  updateProfile,
+  updateProfileWithUploadS3AndTokenParser,
 } from "../controllers/profile.js";
-import tokenParser from "../middleware/token-parser.js";
-import multer from "multer";
-import { uploadProfileImageFile } from "../middleware/upload-s3.js";
-const formParser = multer();
 
 const router = express.Router();
 
-router.get("/:id", getProfile);
+router.get("/:id", getProfileById);
 
 router.get("/id/:id", getProfilesByUserId);
 
 router.get("/username/:username", getProfilesByUsername);
 
-router.post("/", uploadProfileImageFile, addProfiles);
+router.post("/", createProfileWithUploadS3AndTokenParser);
 
-router.patch("/:id", uploadProfileImageFile, updateProfile);
+router.patch("/:id", updateProfileWithUploadS3AndTokenParser);
 
-router.delete("/:id", tokenParser, deleteProfile);
+router.delete("/:id", deleteProfileWithTokenParser);
 
 export default router;

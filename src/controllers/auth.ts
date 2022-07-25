@@ -53,6 +53,7 @@ export const userSignin = async (req: Request, res: Response) => {
     await savedToken.save();
 
     //refresh Token은 쿠키에 저장
+    //브라우저에서 JS로 토큰 접근 못하게 httpOnly 설정
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
@@ -64,40 +65,50 @@ export const userSignin = async (req: Request, res: Response) => {
   }
 };
 
+//회원 가입
 export const userSignup = async (req: Request, res: Response) => {
   const { username, password, email } = req.body;
 
+  //가입 데이터 중 하나라도 없으면 에러 반환
   if (!username || !password || !email) {
     return res.status(400).json(defaultErrorJson("missing data"));
   }
 
   try {
+    //이미 존재하는 이메일인지 확인
     const findDupEmail = await UserModel.findOne({ email }).exec();
     if (findDupEmail) {
       return res.status(409).json(authErrorJson("exist email"));
     }
+    //이미 존재하는 사용자 이름인지 확인
     const findDupUsername = await UserModel.findOne({ username }).exec();
     if (findDupUsername) {
       return res.status(409).json(authErrorJson("exist username"));
     }
 
+    //비밀번호 암호화
     const salt = await bcrypt.genSalt();
     const encryptPassword = await bcrypt.hash(password, salt);
 
+    //유저 모델 생성
     const newUser = new UserModel({
       username,
       password: encryptPassword,
       email,
     });
 
+    //db에 저장
     await newUser.save();
 
+    //성공 반환
     res.status(201).send("register success");
   } catch (err: any) {
+    //에러 반환
     res.status(500).json(defaultErrorJson("server error", err));
   }
 };
 
+//로그아웃
 export const userSignout = async (req: Request, res: Response) => {
   //refreshToken DB에서 제거
   const refreshToken: string = req.cookies["refreshToken"] || "";
@@ -115,6 +126,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   const refreshToken: string = req.cookies.refreshToken || "";
   const refreshKey = process.env.JWT_SECRET_REFRESH || "";
 
+  //토큰이 없으면 에러 반환
   if (!refreshToken) {
     return res.status(403).send(defaultErrorJson("not signin"));
   }
@@ -144,6 +156,8 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   return res.status(403).send(defaultErrorJson("not signin"));
 };
 
+//비밀번호 찾기 요청
+//사용자 이름, 이메일로 존재하는 계정인지 확인
 export const findUserForFindPassword = async (req: Request, res: Response) => {
   const { username, email }: { username: string; email: string } = req.body;
 
@@ -159,6 +173,8 @@ export const findUserForFindPassword = async (req: Request, res: Response) => {
   }
 };
 
+//비밀번호 찾기 요청에서 존재하는 계정이면
+//암호 변경 요청
 export const changePassword = async (req: Request, res: Response) => {
   const {
     username,

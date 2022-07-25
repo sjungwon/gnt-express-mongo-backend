@@ -1,23 +1,22 @@
 import express from "express";
 import {
-  addComment,
-  blockComment,
-  deleteComment,
+  blockCommentWithTokenParser,
+  createCommentWithTokenParser,
+  deleteCommentWithTokenParser,
   getMoreComment,
-  updateComment,
+  updateCommentWithTokenParser,
 } from "../controllers/comments.js";
-import tokenParser from "../middleware/token-parser.js";
 
 const router = express.Router();
 
 router.get("/:postId/:lastDate", getMoreComment);
 
-router.post("/", tokenParser, addComment);
+router.post("/", createCommentWithTokenParser);
 
-router.patch("/block/:id", tokenParser, blockComment);
+router.patch("/block/:id", blockCommentWithTokenParser);
 
-router.patch("/:id", tokenParser, updateComment);
+router.patch("/:id", updateCommentWithTokenParser);
 
-router.delete("/:id", tokenParser, deleteComment);
+router.delete("/:id", deleteCommentWithTokenParser);
 
 export default router;

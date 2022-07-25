@@ -50,6 +50,9 @@ const SubcommentSchema = new mongoose.Schema<SubcommentType>({
   },
 });
 
+//저장시
+//현재 날짜 저장
+//댓글 데이터의 대댓글 리스트에 추가 & 대댓글 count + 1
 SubcommentSchema.pre("save", async function (next) {
   this.createdAt = new Date();
   const commentId = this.commentId;
@@ -64,6 +67,8 @@ SubcommentSchema.pre("save", async function (next) {
   next();
 });
 
+//대댓글 쿼리시
+//프로필, 유저, 카테고리 조인
 SubcommentSchema.pre(/^find/, function (next) {
   this.populate({ path: "profile" });
   this.populate({ path: "user", select: "username" });
