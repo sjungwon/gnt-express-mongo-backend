@@ -1,14 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { ErrorResponseType } from "../types/error.type";
+import { tokenErrorJson } from "../functions/errorJsonGen.js";
+import { TokenPayload } from "../functions/token.js";
 
-//유저 정보는 accessToken만으로 처리
-//client 쪽에서 유저 권한이 필요한 요청인 경우엔 checklogin으로 토큰을 재발급 받은 후에
+//유저 요청에서 유저 정보는 accessToken만으로 처리
+//client 쪽에서 유저 정보가 필요한 요청인 경우
+//token expire 오류 전달 받으면
+//refresh 토큰으로 으로 access 토큰을 재발급 받은 후에
 //요청하도록 구현
-interface TokenErrorType extends ErrorResponseType {
-  type: "token expired";
-}
-
 export default function tokenParser(
   req: Request,
   res: Response,
@@ -16,29 +15,24 @@ export default function tokenParser(
 ) {
   const accessToken = req.headers.authorization?.split(" ")[1];
 
+  //토큰이 없는 경우
   if (!accessToken) {
-    const errJson: TokenErrorType = {
-      error: "token expired",
-      type: "token expired",
-    };
-    return res.status(403).send(errJson);
+    return res.status(403).send(tokenErrorJson());
   }
 
   const accessKey = process.env.JWT_SECRET_ACCESS || "";
 
   try {
+    //토큰 검증 - 만료된 토큰이면 오류 반환
     const verify = jwt.verify(accessToken, accessKey, {
       ignoreExpiration: false,
     });
 
-    req.body.parseToken = verify;
+    //요청 데이터에 토큰 유저 정보 전달
+    req.parseToken = verify as TokenPayload;
 
     next();
   } catch (err) {
-    const errJson: TokenErrorType = {
-      error: "token expired",
-      type: "token expired",
-    };
-    return res.status(403).send(errJson);
+    return res.status(403).send(tokenErrorJson());
   }
 }

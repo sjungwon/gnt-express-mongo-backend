@@ -1,22 +1,37 @@
-import express, { Response } from "express";
+import express from "express";
 import {
-  createPost,
-  deletePost,
+  blockPostWithTokenParser,
+  createPostWithUploadS3AndTokenParser,
+  deletePostWithTokenParser,
+  dislikePostWithTokenParser,
   getPosts,
-  updatePost,
+  getPostsByCategoryId,
+  getPostsByProfileId,
+  getPostsByUsername,
+  likePostWithTokenParser,
+  updatePostWithUploadS3AndTokenParser,
 } from "../controllers/posts.js";
-import tokenParser from "../middleware/token-parser.js";
 
 const router = express.Router();
 
-router.get("/", tokenParser, getPosts);
+router.get("/", getPosts);
 
-router.post("/", createPost);
+router.get("/categories/:categoryId", getPostsByCategoryId);
 
-router.patch("/:id", updatePost);
+router.get("/profiles/:profileId", getPostsByProfileId);
 
-router.delete("/:id", deletePost);
+router.get("/users/:username", getPostsByUsername);
 
-// router.delete("/:id", removePost);
+router.post("/", createPostWithUploadS3AndTokenParser);
+
+router.patch("/", updatePostWithUploadS3AndTokenParser);
+
+router.patch("/block/:id", blockPostWithTokenParser);
+
+router.delete("/:id", deletePostWithTokenParser);
+
+router.patch("/likes/:id", likePostWithTokenParser);
+
+router.patch("/dislikes/:id", dislikePostWithTokenParser);
 
 export default router;
