@@ -494,7 +494,9 @@ export const likePost = async (req: Request, res: Response) => {
 
   const postId = req.params["id"];
 
-  if (!postId) {
+  const type = req.body.type as "create" | "update" | "delete";
+
+  if (!postId || !type) {
     return res
       .status(defaultErrorCode["missing data"])
       .json(defaultErrorJson("missing data"));
@@ -510,44 +512,44 @@ export const likePost = async (req: Request, res: Response) => {
         .json(defaultErrorJson("not found"));
     }
 
-    //좋아요가 이미 있는 경우 - 취소하기 위해 누른 경우
-    if (prevLikeData.likeUsers?.includes(userData.id)) {
-      const resData = await PostModel.findByIdAndUpdate(
-        postId,
-        {
-          $inc: { likes: -1 },
-          $pull: { likeUsers: userData.id },
-        },
-        { new: true }
-      );
-      return res.status(201).json(resData);
+    switch (type) {
+      case "create": {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { likes: 1 },
+            $push: { likeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
+      case "delete": {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { likes: -1 },
+            $pull: { likeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
+      default: {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { likes: 1, dislikes: -1 },
+            $pull: { dislikeUsers: userData.id },
+            $push: { likeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
     }
 
-    //싫어요가 있는 경우 - 싫어요 제거 후 좋아요 추가
-    if (prevLikeData.dislikeUsers?.includes(userData.id)) {
-      const resData = await PostModel.findByIdAndUpdate(
-        postId,
-        {
-          $inc: { likes: 1, dislikes: -1 },
-          $pull: { dislikeUsers: userData.id },
-          $push: { likeUsers: userData.id },
-        },
-        { new: true }
-      );
-      return res.status(201).json(resData);
-    }
-
-    //이전 데이터가 없는 경우 -> 좋아요 추가
-    const resData = await PostModel.findByIdAndUpdate(
-      postId,
-      {
-        $inc: { likes: 1 },
-        $push: { likeUsers: userData.id },
-      },
-      { new: true }
-    );
-
-    return res.status(201).json(resData);
+    return res.status(201).send("handle like successfully");
   } catch (err) {
     return res
       .status(defaultErrorCode["server error"])
@@ -563,7 +565,9 @@ export const dislikePost = async (req: Request, res: Response) => {
 
   const postId = req.params["id"];
 
-  if (!postId) {
+  const type = req.body.type as "create" | "update" | "delete";
+
+  if (!postId || !type) {
     return res
       .status(defaultErrorCode["missing data"])
       .json(defaultErrorJson("missing data"));
@@ -579,45 +583,44 @@ export const dislikePost = async (req: Request, res: Response) => {
         .json(defaultErrorJson("not found"));
     }
 
-    //싫어요가 이미 있는 경우 - 싫어요 취소
-    if (prevLikeData.dislikeUsers?.includes(userData.id)) {
-      const resData = await PostModel.findByIdAndUpdate(
-        postId,
-        {
-          $inc: { dislikes: -1 },
-          $pull: { dislikeUsers: userData.id },
-        },
-        { new: true }
-      );
-
-      return res.status(201).json(resData);
+    switch (type) {
+      case "create": {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { dislikes: 1 },
+            $push: { dislikeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
+      case "delete": {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { dislikes: -1 },
+            $pull: { dislikeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
+      default: {
+        await PostModel.findByIdAndUpdate(
+          postId,
+          {
+            $inc: { likes: -1, dislikes: 1 },
+            $pull: { likeUsers: userData.id },
+            $push: { dislikeUsers: userData.id },
+          },
+          { new: true }
+        );
+        break;
+      }
     }
 
-    //좋아요가 있는 경우 - 좋아요 제거 후 싫어요 추가
-    if (prevLikeData.likeUsers?.includes(userData.id)) {
-      const resData = await PostModel.findByIdAndUpdate(
-        postId,
-        {
-          $inc: { likes: -1, dislikes: 1 },
-          $pull: { likeUsers: userData.id },
-          $push: { dislikeUsers: userData.id },
-        },
-        { new: true }
-      );
-      return res.status(201).json(resData);
-    }
-
-    //이전 데이터가 없는 경우 -> 싫어요 추가
-    const resData = await PostModel.findByIdAndUpdate(
-      postId,
-      {
-        $inc: { dislikes: 1 },
-        $push: { dislikeUsers: userData.id },
-      },
-      { new: true }
-    );
-
-    return res.status(201).json(resData);
+    return res.status(201).send("handle dislike successfully");
   } catch (err) {
     return res
       .status(defaultErrorCode["server error"])
