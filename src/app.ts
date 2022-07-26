@@ -19,9 +19,10 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
+//cors -> origin: true -> 요청 보낸 ip를 access-control-allow-origin으로 설정됨
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: true,
     credentials: true,
   })
 );
