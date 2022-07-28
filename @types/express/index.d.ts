@@ -1,6 +1,7 @@
 namespace Express {
   interface Request {
     profileImageObj?: ImageObj;
+    credentialImageObj?: ImageObj;
     parseToken?: {
       username: string;
       id: Types.ObjectId;

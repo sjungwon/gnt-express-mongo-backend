@@ -4,7 +4,7 @@ import { defaultErrorJson } from "../functions/errorJsonGen.js";
 import { TokenPayload } from "../functions/token.js";
 import tokenParser from "../middleware/token-parser.js";
 import {
-  ProfileImageObj,
+  ImageObj,
   uploadProfileImageFileWithTokenParser,
 } from "../middleware/upload-s3.js";
 import ProfileModel, { ProfileType } from "../models/profile.js";
@@ -103,7 +103,8 @@ const createProfile: RequestHandler = async (req, res) => {
   }
 
   //이미지 있는 경우 middleware에서 s3에 이미지 저장 후 전달된 객체
-  const profileImageObj: ProfileImageObj | undefined = req.profileImageObj;
+  const profileImageObj: ImageObj | undefined = req.profileImageObj;
+  const credentialImageObj: ImageObj | undefined = req.credentialImageObj;
 
   const profileData: ProfileType = {
     ...reqProfileData,
@@ -111,6 +112,10 @@ const createProfile: RequestHandler = async (req, res) => {
     profileImage: {
       URL: profileImageObj?.URL || "",
       Key: profileImageObj?.Key || "",
+    },
+    credentialImage: {
+      URL: credentialImageObj?.URL || "",
+      Key: credentialImageObj?.Key || "",
     },
   };
 
@@ -136,6 +141,7 @@ interface UpdateProfileReqType {
   category: string;
   nickname: string;
   profileImage?: "null";
+  credentialImage?: "null";
 }
 
 //profile update
@@ -153,7 +159,8 @@ const updateProfile: RequestHandler = async (req, res) => {
     return res.status(400).json(defaultErrorJson("missing data"));
   }
 
-  const newProfileImage: ProfileImageObj | undefined = req.profileImageObj;
+  const newProfileImage: ImageObj | undefined = req.profileImageObj;
+  const newCredentialImage: ImageObj | undefined = req.credentialImageObj;
 
   try {
     //이전 프로필 데이터가 있는지 확인
@@ -176,7 +183,8 @@ const updateProfile: RequestHandler = async (req, res) => {
     let updateData: {
       category?: string;
       nickname?: string;
-      profileImage?: ProfileImageObj;
+      profileImage?: ImageObj;
+      credentialImage?: ImageObj;
     } = {};
 
     //업데이트 프로필의 카테고리가 변경됐으면 카테고리 데이터 설정
@@ -205,6 +213,23 @@ const updateProfile: RequestHandler = async (req, res) => {
     //새로운 이미지 데이터에 설정
     if (newProfileImage) {
       updateData.profileImage = newProfileImage;
+    }
+
+    //업데이트 데이터에 credentialImage가 null(제거된 경우)거나 새로운 이미지가 설정된 경우
+    if (profileData.credentialImage === "null" || newCredentialImage) {
+      //이전 프로필 정보로 이미지 제거
+      if (prevProfile.credentialImage.Key) {
+        const deleteParams: AWS.S3.DeleteObjectRequest = {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: prevProfile.credentialImage.Key,
+        };
+        await S3.deleteObject(deleteParams).promise();
+        updateData.credentialImage = { URL: "", Key: "" };
+      }
+    }
+    //새로운 이미지 데이터에 설정
+    if (newCredentialImage) {
+      updateData.credentialImage = newCredentialImage;
     }
 
     //데이터 업데이트
@@ -253,6 +278,17 @@ const deleteProfile: RequestHandler = async (req, res) => {
       const deleteParam: AWS.S3.DeleteObjectRequest = {
         Bucket: process.env.S3_BUCKET_NAME,
         Key: profile.profileImage.Key,
+      };
+      await S3.deleteObject(deleteParam).promise();
+    }
+
+    if (profile.credentialImage.Key) {
+      if (!process.env.S3_BUCKET_NAME) {
+        return res.status(500).send("bucket name missing");
+      }
+      const deleteParam: AWS.S3.DeleteObjectRequest = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: profile.credentialImage.Key,
       };
       await S3.deleteObject(deleteParam).promise();
     }

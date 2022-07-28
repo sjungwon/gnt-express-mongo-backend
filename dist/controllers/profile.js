@@ -92,9 +92,13 @@ const createProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
     //이미지 있는 경우 middleware에서 s3에 이미지 저장 후 전달된 객체
     const profileImageObj = req.profileImageObj;
+    const credentialImageObj = req.credentialImageObj;
     const profileData = Object.assign(Object.assign({}, reqProfileData), { user: userId, profileImage: {
             URL: (profileImageObj === null || profileImageObj === void 0 ? void 0 : profileImageObj.URL) || "",
             Key: (profileImageObj === null || profileImageObj === void 0 ? void 0 : profileImageObj.Key) || "",
+        }, credentialImage: {
+            URL: (credentialImageObj === null || credentialImageObj === void 0 ? void 0 : credentialImageObj.URL) || "",
+            Key: (credentialImageObj === null || credentialImageObj === void 0 ? void 0 : credentialImageObj.Key) || "",
         } });
     try {
         const newProfile = new ProfileModel(profileData);
@@ -122,6 +126,7 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         return res.status(400).json(defaultErrorJson("missing data"));
     }
     const newProfileImage = req.profileImageObj;
+    const newCredentialImage = req.credentialImageObj;
     try {
         //이전 프로필 데이터가 있는지 확인
         const prevProfile = yield ProfileModel.findById(profileId).exec();
@@ -162,6 +167,22 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (newProfileImage) {
             updateData.profileImage = newProfileImage;
         }
+        //업데이트 데이터에 credentialImage가 null(제거된 경우)거나 새로운 이미지가 설정된 경우
+        if (profileData.credentialImage === "null" || newCredentialImage) {
+            //이전 프로필 정보로 이미지 제거
+            if (prevProfile.credentialImage.Key) {
+                const deleteParams = {
+                    Bucket: process.env.S3_BUCKET_NAME,
+                    Key: prevProfile.credentialImage.Key,
+                };
+                yield S3.deleteObject(deleteParams).promise();
+                updateData.credentialImage = { URL: "", Key: "" };
+            }
+        }
+        //새로운 이미지 데이터에 설정
+        if (newCredentialImage) {
+            updateData.credentialImage = newCredentialImage;
+        }
         //데이터 업데이트
         const updatedProfile = yield ProfileModel.findByIdAndUpdate(profileId, updateData, { new: true });
         return res.status(201).json(updatedProfile);
@@ -197,6 +218,16 @@ const deleteProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             const deleteParam = {
                 Bucket: process.env.S3_BUCKET_NAME,
                 Key: profile.profileImage.Key,
+            };
+            yield S3.deleteObject(deleteParam).promise();
+        }
+        if (profile.credentialImage.Key) {
+            if (!process.env.S3_BUCKET_NAME) {
+                return res.status(500).send("bucket name missing");
+            }
+            const deleteParam = {
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: profile.credentialImage.Key,
             };
             yield S3.deleteObject(deleteParam).promise();
         }
