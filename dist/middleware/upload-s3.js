@@ -16,10 +16,12 @@ import S3 from "../storage/s3.js";
 const formParser = multer();
 //프로필 이미지 업로드
 const uploadProfileImage = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     //form으로 들어온 파일 데이터 multer에서 parse 후 전달
-    const file = req.file;
+    const files = req.files || undefined;
     //파일이 없는 경우
-    if (!file) {
+    if (!files ||
+        (!((_a = files.profileImage) === null || _a === void 0 ? void 0 : _a.length) && !((_b = files.credentialImage) === null || _b === void 0 ? void 0 : _b.length))) {
         return next();
     }
     const userData = req.parseToken;
@@ -27,28 +29,54 @@ const uploadProfileImage = (req, res, next) => __awaiter(void 0, void 0, void 0,
     if (!process.env.S3_BUCKET_NAME) {
         return res.status(500).send("bucket name missing");
     }
+    const profileImage = files.profileImage ? files.profileImage[0] : null;
+    const credentialImage = files.credentialImage
+        ? files.credentialImage[0]
+        : null;
     try {
         //파일 사이즈 조절
-        const resizedFile = yield sharp(file.buffer)
-            .jpeg({ quality: 90 })
-            .resize(50, 50)
-            .toBuffer();
-        //파일 스트림 생성
-        const fileStream = Readable.from(resizedFile);
-        //S3 요청 데이터
-        const uploadParams = {
-            Bucket: process.env.S3_BUCKET_NAME,
-            Key: `${userData.id}/profile/${new Date().toISOString()}/${encodeURIComponent(file.originalname)}`,
-            Body: fileStream,
-        };
-        //업로드
-        const objURL = yield S3.upload(uploadParams).promise();
-        const profileImageObj = {
-            URL: objURL.Location,
-            Key: objURL.Key,
-        };
-        //req에 S3 데이터 설정
-        req.profileImageObj = profileImageObj;
+        if (profileImage) {
+            const resizedFile = yield sharp(profileImage.buffer)
+                .jpeg({ quality: 90 })
+                .resize(50, 50)
+                .toBuffer();
+            const fileStream = Readable.from(resizedFile);
+            //S3 요청 데이터
+            const uploadParams = {
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: `${userData.id}/profile/${new Date().toISOString()}/${encodeURIComponent(profileImage.originalname)}`,
+                Body: fileStream,
+            };
+            //업로드
+            const objURL = yield S3.upload(uploadParams).promise();
+            const profileImageObj = {
+                URL: objURL.Location,
+                Key: objURL.Key,
+            };
+            //req에 S3 데이터 설정
+            req.profileImageObj = profileImageObj;
+        }
+        if (credentialImage) {
+            const resizedFile = yield sharp(credentialImage.buffer)
+                .jpeg({ quality: 90 })
+                .resize(600, 350)
+                .toBuffer();
+            const fileStream = Readable.from(resizedFile);
+            //S3 요청 데이터
+            const uploadParams = {
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: `${userData.id}/profile/${new Date().toISOString()}/${encodeURIComponent(credentialImage.originalname)}`,
+                Body: fileStream,
+            };
+            //업로드
+            const objURL = yield S3.upload(uploadParams).promise();
+            const credentialImageObj = {
+                URL: objURL.Location,
+                Key: objURL.Key,
+            };
+            //req에 S3 데이터 설정
+            req.credentialImageObj = credentialImageObj;
+        }
         next();
     }
     catch (err) {
@@ -57,7 +85,10 @@ const uploadProfileImage = (req, res, next) => __awaiter(void 0, void 0, void 0,
 });
 //middleware 묶어서 export
 export const uploadProfileImageFileWithTokenParser = [
-    formParser.single("profileImage"),
+    formParser.fields([
+        { name: "profileImage", maxCount: 1 },
+        { name: "credentialImage", maxCount: 1 },
+    ]),
     tokenParser,
     uploadProfileImage,
 ];
