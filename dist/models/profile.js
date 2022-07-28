@@ -24,6 +24,16 @@ const profileSchema = new mongoose.Schema({
             default: "",
         },
     },
+    credentialImage: {
+        URL: {
+            type: String,
+            default: "",
+        },
+        Key: {
+            type: String,
+            default: "",
+        },
+    },
     createdAt: {
         type: Date,
         default: new Date(),
