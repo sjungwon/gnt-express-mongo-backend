@@ -21,6 +21,11 @@ app.use(cors({
     credentials: true,
 }));
 app.use(cookieParser());
+//log
+app.use((req, res, next) => {
+    console.log(`${req.method}: from ${req.ip}, to ${req.url}`);
+    next();
+});
 //Routing
 app.use("/", IndexRouter);
 app.use("/posts", PostRouter);
