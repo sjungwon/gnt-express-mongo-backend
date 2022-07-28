@@ -9,6 +9,10 @@ export interface ProfileType {
     URL?: string;
     Key?: string;
   };
+  credentialImage: {
+    URL?: string;
+    Key?: string;
+  };
   createdAt?: Date;
 }
 
@@ -28,6 +32,16 @@ const profileSchema = new mongoose.Schema<ProfileType>({
     required: true,
   },
   profileImage: {
+    URL: {
+      type: String,
+      default: "",
+    },
+    Key: {
+      type: String,
+      default: "",
+    },
+  },
+  credentialImage: {
     URL: {
       type: String,
       default: "",
