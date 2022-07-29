@@ -1,8 +1,9 @@
 import express from "express";
-import { blockPostWithTokenParser, createPostWithUploadS3AndTokenParser, deletePostWithTokenParser, dislikePostWithTokenParser, getPosts, getPostsByCategoryId, getPostsByProfileId, getPostsByUsername, likePostWithTokenParser, updatePostWithUploadS3AndTokenParser, } from "../controllers/posts.js";
+import { blockPostWithTokenParser, createPostWithUploadS3AndTokenParser, deletePostWithTokenParser, dislikePostWithTokenParser, getPosts, getPostsByCategoryId, getPostsByCategoryTitle, getPostsByProfileId, getPostsByUsername, likePostWithTokenParser, updatePostWithUploadS3AndTokenParser, } from "../controllers/posts.js";
 const router = express.Router();
 router.get("/", getPosts);
-router.get("/categories/:categoryId", getPostsByCategoryId);
+router.get("/categories/id/:categoryId", getPostsByCategoryId);
+router.get("/categories/title/:categoryTitle", getPostsByCategoryTitle);
 router.get("/profiles/:profileId", getPostsByProfileId);
 router.get("/users/:username", getPostsByUsername);
 router.post("/", createPostWithUploadS3AndTokenParser);
