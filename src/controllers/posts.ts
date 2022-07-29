@@ -89,7 +89,7 @@ export const getPosts = async (req: Request, res: Response) => {
   }
 };
 
-//카테고리별 포스트 요청
+//카테고리별 포스트 요청 - 카테고리 아이디
 export const getPostsByCategoryId = async (req: Request, res: Response) => {
   const categoryId: string = (req.params.categoryId as string) || "";
 
@@ -113,6 +113,53 @@ export const getPostsByCategoryId = async (req: Request, res: Response) => {
     const posts = await PostModel.find(
       {
         category: categoryId,
+        createdAt: { $lt: new Date(lastPost) },
+      },
+      {},
+      { sort: { createdAt: -1 }, limit: 6 }
+    );
+    return res.status(200).json(posts);
+  } catch (err) {
+    return res
+      .status(defaultErrorCode["server error"])
+      .json(defaultErrorJson("server error", err));
+  }
+};
+
+//카테고리별 포스트 요청 - 카테고리 이름
+export const getPostsByCategoryTitle = async (req: Request, res: Response) => {
+  const categoryTitle: string = (req.params.categoryTitle as string) || "";
+
+  if (!categoryTitle) {
+    return res
+      .status(defaultErrorCode["missing data"])
+      .json(defaultErrorJson("missing data"));
+  }
+
+  const lastPost: string = (req.query.last as string) || "";
+
+  try {
+    const decodedTitle = decodeURIComponent(categoryTitle);
+
+    const category = await CategoryModel.findOne({ title: decodedTitle });
+
+    if (!category) {
+      return res
+        .status(defaultErrorCode["not found"])
+        .json(defaultErrorJson("not found"));
+    }
+
+    if (!lastPost) {
+      const posts = await PostModel.find(
+        { category: category._id },
+        {},
+        { sort: { createdAt: -1 }, limit: 6 }
+      );
+      return res.status(200).json(posts);
+    }
+    const posts = await PostModel.find(
+      {
+        category: category._id,
         createdAt: { $lt: new Date(lastPost) },
       },
       {},

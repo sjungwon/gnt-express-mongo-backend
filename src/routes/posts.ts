@@ -6,6 +6,7 @@ import {
   dislikePostWithTokenParser,
   getPosts,
   getPostsByCategoryId,
+  getPostsByCategoryTitle,
   getPostsByProfileId,
   getPostsByUsername,
   likePostWithTokenParser,
@@ -16,7 +17,9 @@ const router = express.Router();
 
 router.get("/", getPosts);
 
-router.get("/categories/:categoryId", getPostsByCategoryId);
+router.get("/categories/id/:categoryId", getPostsByCategoryId);
+
+router.get("/categories/title/:categoryTitle", getPostsByCategoryTitle);
 
 router.get("/profiles/:profileId", getPostsByProfileId);
 

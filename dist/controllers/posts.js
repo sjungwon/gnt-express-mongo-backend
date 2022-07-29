@@ -74,7 +74,7 @@ export const getPosts = (req, res) => __awaiter(void 0, void 0, void 0, function
             .json(defaultErrorJson("server error", err));
     }
 });
-//카테고리별 포스트 요청
+//카테고리별 포스트 요청 - 카테고리 아이디
 export const getPostsByCategoryId = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const categoryId = req.params.categoryId || "";
     if (!categoryId) {
@@ -90,6 +90,39 @@ export const getPostsByCategoryId = (req, res) => __awaiter(void 0, void 0, void
         }
         const posts = yield PostModel.find({
             category: categoryId,
+            createdAt: { $lt: new Date(lastPost) },
+        }, {}, { sort: { createdAt: -1 }, limit: 6 });
+        return res.status(200).json(posts);
+    }
+    catch (err) {
+        return res
+            .status(defaultErrorCode["server error"])
+            .json(defaultErrorJson("server error", err));
+    }
+});
+//카테고리별 포스트 요청 - 카테고리 이름
+export const getPostsByCategoryTitle = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const categoryTitle = req.params.categoryTitle || "";
+    if (!categoryTitle) {
+        return res
+            .status(defaultErrorCode["missing data"])
+            .json(defaultErrorJson("missing data"));
+    }
+    const lastPost = req.query.last || "";
+    try {
+        const decodedTitle = decodeURIComponent(categoryTitle);
+        const category = yield CategoryModel.findOne({ title: decodedTitle });
+        if (!category) {
+            return res
+                .status(defaultErrorCode["not found"])
+                .json(defaultErrorJson("not found"));
+        }
+        if (!lastPost) {
+            const posts = yield PostModel.find({ category: category._id }, {}, { sort: { createdAt: -1 }, limit: 6 });
+            return res.status(200).json(posts);
+        }
+        const posts = yield PostModel.find({
+            category: category._id,
             createdAt: { $lt: new Date(lastPost) },
         }, {}, { sort: { createdAt: -1 }, limit: 6 });
         return res.status(200).json(posts);
